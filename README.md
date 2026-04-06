@@ -1,4 +1,4 @@
-Project Name: CAPPY STONY ROJEXE
+Project Name: QUANTIC CAPSTONE PROJECT
 
 Team: Scrum Master (You), PO, TTM.
 
