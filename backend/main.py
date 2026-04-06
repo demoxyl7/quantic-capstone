@@ -13,4 +13,4 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "Cappy Stony Rojexe is Live!", "version": "1.0.0"}
+    return {"status": "Quantic Capstone is Live!", "version": "1.0.0"}
