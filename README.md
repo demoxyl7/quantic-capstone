@@ -1,6 +1,6 @@
 Project Name: QUANTIC CAPSTONE PROJECT
 
-Team: Scrum Master (You), PO, TTM.
+Team: Scrum Master , PO, TTM.
 
 Tech Stack: React, Python FastAPI, PostgreSQL.
 
