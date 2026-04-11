@@ -23,7 +23,13 @@ app.add_middleware(
 
 # AI Client Setup
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=GEMINI_API_KEY)
+
+# This prevents the crash if the key is missing during startup
+if GEMINI_API_KEY:
+    client = genai.Client(api_key=GEMINI_API_KEY)
+else:
+    client = None
+    print("CRITICAL: GEMINI_API_KEY is not set!")
 
 class AnalysisRequest(BaseModel):
     cv_text: str
@@ -54,6 +60,9 @@ async def upload_cv(file: UploadFile = File(...)):
 
 @app.post("/analyze")
 async def analyze_cv(request: AnalysisRequest):
+    if not client:
+        raise HTTPException(status_code=500, detail="AI Client not initialized. Check API Key.")
+    # ... rest of your code
     prompt = f"""
     Analyze CV: {request.cv_text}
     Against JD: {request.job_description}
