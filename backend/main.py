@@ -1,115 +1,71 @@
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 import os
 import json
 import io
-from fastapi import FastAPI, HTTPException, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from google import genai
 from dotenv import load_dotenv
 from pypdf import PdfReader
+from google import genai
 
-# 1. Load Environment & Initialize Client
 load_dotenv()
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
-# Force 'v1' to avoid beta version conflicts
-client = genai.Client(
-    api_key=GEMINI_API_KEY,
-    http_options={'api_version': 'v1'}
-)
 
 app = FastAPI()
 
-# 2. CORS Middleware
+# Allow your Vercel frontend and local development to talk to this API
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# AI Client Setup
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=GEMINI_API_KEY)
+
 class AnalysisRequest(BaseModel):
     cv_text: str
     job_description: str
 
-# --- ENDPOINTS ---
+# --- ROUTES ---
+
+@app.get("/")
+async def root():
+    # This stops the "Not Found" error when you visit the URL in a browser
+    return {
+        "status": "online", 
+        "message": "AI CV Analyzer Brain is active",
+        "api_key_configured": bool(GEMINI_API_KEY)
+    }
 
 @app.post("/upload-cv")
 async def upload_cv(file: UploadFile = File(...)):
     try:
-        content = await file.read()
-        pdf_file = io.BytesIO(content)
-        
-        reader = PdfReader(pdf_file)
+        pdf_content = await file.read()
+        reader = PdfReader(io.BytesIO(pdf_content))
         text = ""
         for page in reader.pages:
-            extracted = page.extract_text()
-            if extracted:
-                text += extracted + "\n"
-            
-        return {
-            "text": text.strip(),
-            "filename": file.filename
-        }
+            text += page.extract_text()
+        return {"filename": file.filename, "text": text}
     except Exception as e:
-        print(f"PDF Error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Failed to parse PDF: {str(e)}")    
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/analyze")
-async def analyze_match(request: AnalysisRequest):
+async def analyze_cv(request: AnalysisRequest):
+    prompt = f"""
+    Analyze CV: {request.cv_text}
+    Against JD: {request.job_description}
+    Return JSON with: score (0-100), match_status, matched_skills[], missing_skills[], suggestions[].
+    """
     try:
-        # Based on your previous 'AVAILABLE MODELS' list, we use 2.0-flash
-        # If this fails with 404, change to "gemini-2.0-flash-lite"
-        model_id = "gemini-2.0-flash" 
-        
-        prompt = f"""
-        Analyze the following CV against the Job Description.
-        
-        CV Content: {request.cv_text}
-        Job Description: {request.job_description}
-        
-        Return ONLY a JSON object with this exact structure:
-        {{
-            "score": 85,
-            "match_status": "Brief overview of how well they fit",
-            "matched_skills": ["Skill1", "Skill2"],
-            "missing_skills": ["Skill3", "Skill4"],
-            "suggestions": ["Improvement 1", "Improvement 2"]
-        }}
-        """
-
-        response = client.models.generate_content(model=model_id, contents=prompt)
-        
-        # Robust JSON cleaning
-        raw_text = response.text.strip()
-        
-        # Remove Markdown code blocks if present
-        if "```json" in raw_text:
-            raw_text = raw_text.split("```json")[1].split("```")[0].strip()
-        elif "```" in raw_text:
-            raw_text = raw_text.split("```")[1].split("```")[0].strip()
-            
-        return json.loads(raw_text)
-
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", 
+            contents=prompt
+        )
+        # Handle potential markdown formatting in AI response
+        clean_json = response.text.replace("```json", "").replace("```", "").strip()
+        return json.loads(clean_json)
     except Exception as e:
-        error_msg = str(e)
-        print(f"Detailed Error: {error_msg}")
-        
-        # Handle Quota (429) or Model (404) failures with a clean Mock Response
-        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
-            print("Fallback: Returning Mock Data due to Quota limits.")
-            return {
-                "score": 75,
-                "match_status": "MATCH ANALYSIS (PREVIEW MODE): You are currently hitting Google's rate limits, so this is sample data.",
-                "matched_skills": ["Python", "FastAPI", "React"],
-                "missing_skills": ["AWS", "Docker", "Unit Testing"],
-                "suggestions": [
-                    "Highlight your FastAPI experience more clearly.",
-                    "Consider adding a cloud certification to bridge the AWS gap.",
-                    "Include links to GitHub repositories for React projects."
-                ]
-            }
-        
-        # If it's a real coding error, raise the 500
-        raise HTTPException(status_code=500, detail=error_msg)
+        raise HTTPException(status_code=500, detail=str(e))
