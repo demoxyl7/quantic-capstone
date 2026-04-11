@@ -8,9 +8,7 @@ import { ComparisonView } from "@/components/ComparisonView";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 
 // 1. Define the API base outside or inside the component
-const API_BASE = process.env.NODE_ENV === "production"
-  ? "https://quantic-capstone.onrender.com"
-  : "http://localhost:8000";
+const API_BASE = "https://quantic-capstone.onrender.com";
 
 interface AnalysisResult {
   score: number;

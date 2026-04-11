@@ -62,19 +62,49 @@ async def upload_cv(file: UploadFile = File(...)):
 async def analyze_cv(request: AnalysisRequest):
     if not client:
         raise HTTPException(status_code=500, detail="AI Client not initialized. Check API Key.")
-    # ... rest of your code
+
+    # We tell the AI exactly what to do and what NOT to do
     prompt = f"""
-    Analyze CV: {request.cv_text}
-    Against JD: {request.job_description}
-    Return JSON with: score (0-100), match_status, matched_skills[], missing_skills[], suggestions[].
+    Analyze the following CV against the Job Description.
+    CV: {request.cv_text}
+    JD: {request.job_description}
+    
+    IMPORTANT: You must return ONLY a valid JSON object. 
+    Do not include any introductory text or markdown formatting.
+    
+    Required JSON Structure:
+    {{
+        "score": 0-100,
+        "match_status": "string",
+        "matched_skills": [],
+        "missing_skills": [],
+        "suggestions": []
+    }}
     """
+
     try:
         response = client.models.generate_content(
             model="gemini-2.0-flash", 
             contents=prompt
         )
-        # Handle potential markdown formatting in AI response
-        clean_json = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean_json)
+        
+        # This is the "Bulletproof" cleaner
+        raw_text = response.text.strip()
+        
+        # If the AI ignored our 'no markdown' rule, this extracts the JSON inside
+        if "```" in raw_text:
+            # Splits by backticks and takes the content inside
+            parts = raw_text.split("```")
+            for part in parts:
+                if "{" in part and "}" in part:
+                    raw_text = part
+                    if raw_text.startswith("json"):
+                        raw_text = raw_text[4:]
+                    break
+
+        return json.loads(raw_text.strip())
+        
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # This will now show the actual AI error in your Render logs
+        print(f"DEBUGGING ERROR: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"AI Brain Error: {str(e)}")
