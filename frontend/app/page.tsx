@@ -1,4 +1,4 @@
-"use client"; // Required for Next.js interactive components
+"use client";
 
 import { useState } from "react";
 import { Sparkles, Zap, AlertCircle } from "lucide-react";
@@ -7,7 +7,11 @@ import { JobDescriptionInput } from "@/components/JobDescriptionInput";
 import { ComparisonView } from "@/components/ComparisonView";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 
-// Updated Interface to match the Brain structure
+// 1. Define the API base outside or inside the component
+const API_BASE = process.env.NODE_ENV === "production"
+  ? "https://quantic-capstone.onrender.com"
+  : "http://localhost:8000";
+
 interface AnalysisResult {
   score: number;
   match_status: string;
@@ -33,7 +37,8 @@ export default function Home() {
     setError(null);
 
     try {
-      const response = await fetch("http://localhost:8000/analyze", {
+      // 2. Use API_BASE here
+      const response = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -47,19 +52,13 @@ export default function Home() {
       const data = await response.json();
 
       if (response.ok) {
-        console.log("Backend Response:", data);
         setResultData(data); 
         setShowResults(true);
       } else {
-        if (response.status === 429 || data.detail?.includes("exhausted")) {
-          setError("AI Quota exceeded. Please wait 60 seconds.");
-        } else {
-          setError(data.detail || "The AI brain tripped. Please try again.");
-        }
+        setError(data.detail || "The AI brain tripped. Please try again.");
       }
     } catch (error) {
-      console.error("Error connecting to backend:", error);
-      setError("Cannot reach backend server. Ensure it's running on port 8000.");
+      setError("Cannot reach backend server. Ensure it's running.");
     } finally {
       setAnalyzing(false);
     }
@@ -70,6 +69,7 @@ export default function Home() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <main className="flex-1 overflow-y-auto">
+        {/* Header... (omitted for brevity) */}
         <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-lg">
           <div className="flex items-center justify-between px-6 py-4">
             <div>
@@ -78,16 +78,12 @@ export default function Home() {
                 {cvFileName ? `Target: ${cvFileName}` : "Upload CV & match with Job Posting"}
               </p>
             </div>
-            <span className="flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              <Zap className="h-3 w-3" />
-              AI-Powered (Sprint 1)
-            </span>
           </div>
         </header>
 
         <div className="space-y-6 p-6 max-w-5xl mx-auto">
           {error && (
-            <div className="flex items-center gap-2 p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200 animate-in fade-in zoom-in duration-300">
+            <div className="flex items-center gap-2 p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200">
               <AlertCircle className="h-4 w-4" />
               <span>{error}</span>
             </div>
@@ -96,12 +92,14 @@ export default function Home() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium">Upload CV</label>
+              {/* 3. Pass API_BASE to UploadZone if your component handles the fetch internally */}
               <UploadZone
-                onFileContent={(content, name) => {
-                  setCvContent(content);
-                  setCvFileName(name);
-                }}
-              />
+  apiBase={API_BASE} // <--- Add this line!
+  onFileContent={(content, name) => {
+    setCvContent(content);
+    setCvFileName(name);
+  }}
+/>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Job Posting</label>
@@ -113,7 +111,7 @@ export default function Home() {
             <button
               onClick={handleAnalyze}
               disabled={!canAnalyze || analyzing}
-              className={`glow-button flex items-center gap-2 px-8 py-3 rounded-full font-semibold transition-all shadow-xl hover:scale-105 active:scale-95 disabled:opacity-50 disabled:grayscale ${
+              className={`glow-button flex items-center gap-2 px-8 py-3 rounded-full font-semibold transition-all ${
                 analyzing ? "animate-pulse bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"
               }`}
             >
@@ -123,17 +121,9 @@ export default function Home() {
           </div>
 
           {showResults && resultData && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-10 duration-700 fill-mode-forwards">
-              <ResultsDashboard 
-                visible={showResults} 
-                data={resultData} 
-              />
-              
-              <ComparisonView
-                cvContent={cvContent}
-                jobDescription={jobDescription}
-                visible={showResults}
-              />
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-10 duration-700">
+              <ResultsDashboard visible={showResults} data={resultData} />
+              <ComparisonView cvContent={cvContent} jobDescription={jobDescription} visible={showResults} />
             </div>
           )}
         </div>
