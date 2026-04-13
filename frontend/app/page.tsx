@@ -7,8 +7,7 @@ import { JobDescriptionInput } from "@/components/JobDescriptionInput";
 import { ComparisonView } from "@/components/ComparisonView";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 
-// 1. Define the API base outside or inside the component
-const API_BASE = "https://quantic-capstone.onrender.com";
+const API_BASE = "http://127.0.0.1:8000";
 
 interface AnalysisResult {
   score: number;
@@ -30,12 +29,11 @@ export default function Home() {
   const handleAnalyze = async () => {
     if (!cvContent || !jobDescription) return;
     
-    setAnalyzing(true);
+    setAnalyzing(true); // Disables the button immediately
     setShowResults(false);
     setError(null);
 
     try {
-      // 2. Use API_BASE here
       const response = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
         headers: {
@@ -53,12 +51,18 @@ export default function Home() {
         setResultData(data); 
         setShowResults(true);
       } else {
-        setError(data.detail || "The AI brain tripped. Please try again.");
+        // Specifically catch the 429 quota error to show a helpful message
+        if (response.status === 429) {
+            setError("Google AI limit reached. Please wait 60 seconds and try again.");
+        } else {
+            setError(data.detail || "The AI brain tripped. Please try again.");
+        }
       }
     } catch (error) {
       setError("Cannot reach backend server. Ensure it's running.");
     } finally {
-      setAnalyzing(false);
+      // Keep the button disabled for 2 extra seconds to prevent accidental double-clicks
+      setTimeout(() => setAnalyzing(false), 2000);
     }
   };
 
@@ -67,7 +71,6 @@ export default function Home() {
   return (
     <div className="flex h-screen overflow-hidden bg-background">
       <main className="flex-1 overflow-y-auto">
-        {/* Header... (omitted for brevity) */}
         <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-lg">
           <div className="flex items-center justify-between px-6 py-4">
             <div>
@@ -90,14 +93,13 @@ export default function Home() {
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="text-sm font-medium">Upload CV</label>
-              {/* 3. Pass API_BASE to UploadZone if your component handles the fetch internally */}
               <UploadZone
-  apiBase={API_BASE} // <--- Add this line!
-  onFileContent={(content, name) => {
-    setCvContent(content);
-    setCvFileName(name);
-  }}
-/>
+                apiBase={API_BASE}
+                onFileContent={(content, name) => {
+                  setCvContent(content);
+                  setCvFileName(name);
+                }}
+              />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Job Posting</label>
@@ -110,7 +112,9 @@ export default function Home() {
               onClick={handleAnalyze}
               disabled={!canAnalyze || analyzing}
               className={`glow-button flex items-center gap-2 px-8 py-3 rounded-full font-semibold transition-all ${
-                analyzing ? "animate-pulse bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"
+                analyzing 
+                  ? "bg-gray-400 cursor-not-allowed text-white" 
+                  : "bg-primary text-primary-foreground hover:scale-105"
               }`}
             >
               <Sparkles className={`h-4 w-4 ${analyzing ? "animate-spin" : ""}`} />
