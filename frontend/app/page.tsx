@@ -7,7 +7,7 @@ import { JobDescriptionInput } from "@/components/JobDescriptionInput";
 import { ComparisonView } from "@/components/ComparisonView";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 
-const API_BASE = "http://127.0.0.1:8000";
+const API_BASE = "https://quantic-capstone.onrender.com";
 
 interface AnalysisResult {
   score: number;
