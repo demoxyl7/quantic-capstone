@@ -7,7 +7,9 @@ import { JobDescriptionInput } from "@/components/JobDescriptionInput";
 import { ComparisonView } from "@/components/ComparisonView";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 
-const API_BASE = "https://quantic-capstone.onrender.com";
+const API_BASE = typeof window !== "undefined" && window.location.hostname === "localhost"
+    ? "http://127.0.0.1:8000"
+    : "https://quantic-capstone.onrender.com";
 
 interface AnalysisResult {
   score: number;
