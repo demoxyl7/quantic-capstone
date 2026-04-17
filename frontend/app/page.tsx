@@ -1,15 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Zap, AlertCircle } from "lucide-react";
+import { Sparkles, Zap, AlertCircle, Copy, Check } from "lucide-react";
 import { UploadZone } from "@/components/UploadZone";
 import { JobDescriptionInput } from "@/components/JobDescriptionInput";
 import { ComparisonView } from "@/components/ComparisonView";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
 
 const API_BASE = typeof window !== "undefined" && window.location.hostname === "localhost"
-    ? "http://127.0.0.1:8000"
-    : "https://quantic-capstone.onrender.com";
+  ? "http://127.0.0.1:8000"
+  : "https://quantic-capstone.onrender.com";
 
 interface AnalysisResult {
   score: number;
@@ -27,20 +27,24 @@ export default function Home() {
   const [showResults, setShowResults] = useState(false);
   const [resultData, setResultData] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  
+  // Cover Letter States
+  const [coverLetter, setCoverLetter] = useState<string>("");
+  const [isGeneratingLetter, setIsGeneratingLetter] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const handleAnalyze = async () => {
     if (!cvContent || !jobDescription) return;
     
-    setAnalyzing(true); // Disables the button immediately
+    setAnalyzing(true);
     setShowResults(false);
     setError(null);
+    setCoverLetter(""); // Reset letter for new analysis
 
     try {
       const response = await fetch(`${API_BASE}/analyze`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           cv_text: cvContent,
           job_description: jobDescription,
@@ -53,19 +57,49 @@ export default function Home() {
         setResultData(data); 
         setShowResults(true);
       } else {
-        // Specifically catch the 429 quota error to show a helpful message
         if (response.status === 429) {
-            setError("Google AI limit reached. Please wait 60 seconds and try again.");
+          setError("AI limit reached. Please wait 60 seconds and try again.");
         } else {
-            setError(data.detail || "The AI brain tripped. Please try again.");
+          setError(data.detail || "The AI brain tripped. Please try again.");
         }
       }
     } catch (error) {
       setError("Cannot reach backend server. Ensure it's running.");
     } finally {
-      // Keep the button disabled for 2 extra seconds to prevent accidental double-clicks
       setTimeout(() => setAnalyzing(false), 2000);
     }
+  };
+
+  const handleGenerateCoverLetter = async () => {
+    if (!cvContent || !jobDescription) return;
+    
+    setIsGeneratingLetter(true);
+    try {
+      const response = await fetch(`${API_BASE}/generate-cover-letter`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          cv_text: cvContent,
+          job_description: jobDescription,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Generation failed");
+      
+      const data = await response.json();
+      setCoverLetter(data.cover_letter);
+    } catch (err) {
+      console.error("Cover Letter Error:", err);
+      alert("Could not generate cover letter. Please try again.");
+    } finally {
+      setIsGeneratingLetter(false);
+    }
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(coverLetter);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const canAnalyze = cvContent.length > 0 && jobDescription.length > 0;
@@ -127,6 +161,43 @@ export default function Home() {
           {showResults && resultData && (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-10 duration-700">
               <ResultsDashboard visible={showResults} data={resultData} />
+              
+              {/* New Cover Letter Section */}
+              <div className="p-6 bg-card rounded-xl border border-border shadow-sm">
+                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-yellow-500" />
+                  AI Cover Letter Generator
+                </h3>
+                
+                {!coverLetter ? (
+                  <button
+                    onClick={handleGenerateCoverLetter}
+                    disabled={isGeneratingLetter}
+                    className="bg-secondary text-secondary-foreground px-6 py-2 rounded-lg hover:bg-secondary/80 transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isGeneratingLetter ? (
+                      <>
+                        <div className="h-4 w-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
+                        Drafting Letter...
+                      </>
+                    ) : "Generate Customized Cover Letter"}
+                  </button>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="p-5 bg-muted/50 rounded-lg whitespace-pre-wrap text-sm leading-relaxed border border-border italic text-muted-foreground">
+                      {coverLetter}
+                    </div>
+                    <button 
+                      onClick={copyToClipboard}
+                      className="flex items-center gap-2 text-xs bg-primary text-primary-foreground px-4 py-2 rounded-md hover:opacity-90 transition-opacity"
+                    >
+                      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                      {copied ? "Copied!" : "Copy to Clipboard"}
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <ComparisonView cvContent={cvContent} jobDescription={jobDescription} visible={showResults} />
             </div>
           )}

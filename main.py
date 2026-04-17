@@ -10,6 +10,7 @@ from pypdf import PdfReader
 from groq import Groq  # Swapped from google.genai
 from dotenv import load_dotenv
 
+
 # 1. Load Environment Variables
 load_dotenv() 
 
@@ -36,6 +37,10 @@ app.add_middleware(
 class AnalysisRequest(BaseModel):
     cv_text: str
     job_description: str
+
+class CoverLetterRequest(BaseModel):
+    cv_text: str
+    job_description: str    
 
 @app.get("/")
 async def root():
@@ -90,3 +95,40 @@ async def analyze_cv(request: AnalysisRequest):
         if "429" in error_str:
             raise HTTPException(status_code=429, detail="Groq limit reached. Wait a moment.")
         raise HTTPException(status_code=500, detail="AI analysis failed.")
+
+@app.post("/generate-cover-letter")
+async def generate_cover_letter(request: CoverLetterRequest):
+    if not client:
+        raise HTTPException(status_code=500, detail="AI Client not initialized.")
+    
+    # We allow more characters for the cover letter to get better context
+    safe_cv = request.cv_text[:5000]
+    safe_jd = request.job_description[:5000]
+
+    prompt = f"""
+    Write a high-impact, professional cover letter.
+    CANDIDATE CV: {safe_cv}
+    TARGET JOB: {safe_jd}
+    
+    INSTRUCTIONS:
+    1. Focus on bridging the gap between technical expertise and business value.
+    2. Mention specific tools or achievements found in the CV that match the JD.
+    3. Keep it under 350 words.
+    4. Use a modern, professional tone (no generic "To Whom It May Concern").
+    
+    Return ONLY the cover letter text.
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant", # Using the fast model for now
+            messages=[
+                {"role": "system", "content": "You are an executive career coach and expert cover letter writer."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7 
+        )
+        return {"cover_letter": response.choices[0].message.content.strip()}
+    except Exception as e:
+        print(f"COVER LETTER ERROR: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate cover letter.")        
