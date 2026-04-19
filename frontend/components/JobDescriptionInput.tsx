@@ -7,18 +7,21 @@ interface JobDescriptionInputProps {
 
 export function JobDescriptionInput({ value, onChange }: JobDescriptionInputProps) {
   return (
-    <div className="glass-card flex flex-col gap-3 p-5">
-      <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10">
+    <div className="surface-card p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/8">
           <Briefcase className="h-4 w-4 text-accent" />
         </div>
-        <h3 className="text-sm font-semibold">Job Description</h3>
+        <h3 className="text-sm font-semibold text-muted-foreground">
+          Role Requirements
+        </h3>
       </div>
       <textarea
+        id="job-description-input"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="Paste the job description here..."
-        className="min-h-[180px] w-full resize-none rounded-lg border border-border bg-background/50 p-3 text-sm placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+        placeholder="Paste the full job description here..."
+        className="textarea-field min-h-[220px]"
       />
     </div>
   );

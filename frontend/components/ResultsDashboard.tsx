@@ -1,107 +1,147 @@
-"use client";
-
 import { CircularProgress } from "./CircularProgress";
-import { AlertTriangle, CheckCircle2, Lightbulb, TrendingUp, XCircle } from "lucide-react";
+import { CheckCircle2, AlertTriangle, BookOpen, TrendingUp } from "lucide-react";
 
-// Define the data structure for the AI response
 interface AnalysisData {
   score: number;
   match_status: string;
   matched_skills: string[];
   missing_skills: string[];
-  suggestions: string[];
+  skill_gap_courses: { topic: string; description: string }[];
 }
 
 interface ResultsDashboardProps {
   visible: boolean;
-  data: AnalysisData | null; // Receive real data from backend
+  data: AnalysisData | null;
 }
 
 export function ResultsDashboard({ visible, data }: ResultsDashboardProps) {
   if (!visible || !data) return null;
 
-  return (
-    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h2 className="text-lg font-bold">Analysis Results</h2>
+  const scoreColor =
+    data.score >= 75
+      ? "text-success"
+      : data.score >= 50
+        ? "text-primary"
+        : "text-destructive";
 
-      {/* Match Score Card */}
-      <div className="glass-card flex flex-col items-center gap-4 p-6 sm:flex-row sm:items-start">
-        <CircularProgress value={data.score} />
-        <div className="flex-1 space-y-2">
-          <h3 className="font-semibold">Overall Match Score</h3>
-          <p className="text-sm text-muted-foreground italic">
-            "{data.match_status}"
-          </p>
-          <div className="flex gap-4 pt-2">
-            <Stat label="Matched" value={`${data.matched_skills.length}`} />
-            <Stat label="Missing" value={`${data.missing_skills.length}`} />
-            <Stat label="Status" value={data.score > 70 ? "Strong" : "Developing"} />
+  return (
+    <div className="space-y-6 animate-fade-in-up">
+      {/* Score Header */}
+      <div className="surface-elevated p-6 flex flex-col sm:flex-row gap-6 items-center">
+        <div className="relative shrink-0">
+          <CircularProgress value={data.score} size={120} strokeWidth={8} />
+          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+            <span className={`text-2xl font-extrabold ${scoreColor}`}>
+              {data.score}%
+            </span>
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              Match
+            </span>
           </div>
+        </div>
+
+        <div className="flex-1 text-center sm:text-left">
+          <div
+            className={`inline-flex badge ${
+              data.score >= 75
+                ? "badge-success"
+                : data.score >= 50
+                  ? "badge-primary"
+                  : "badge-destructive"
+            } mb-2`}
+          >
+            {data.score >= 75
+              ? "Strong Match"
+              : data.score >= 50
+                ? "Moderate Match"
+                : "Needs Work"}
+          </div>
+          <h2 className="text-lg font-bold mb-1">{data.match_status}</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
+            {data.score >= 75
+              ? "Your profile aligns well with this role. A few targeted refinements could make your application even stronger."
+              : data.score >= 50
+                ? "There's a solid foundation here. Focus on addressing the skill gaps below to improve your match."
+                : "There are significant gaps between your profile and this role. Consider the learning paths suggested below."}
+          </p>
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Real Matched Skills */}
-        <div className="glass-card space-y-3 p-5 border-green-500/20 bg-green-500/5">
-          <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4 w-4 text-green-500" />
-            <h3 className="text-sm font-semibold text-green-700">Matched Skills</h3>
+      {/* Skills Grid */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Matched Skills */}
+        <div className="surface-elevated p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <CheckCircle2 className="h-4 w-4 text-success" />
+            <h3 className="text-sm font-bold">
+              Skills You Have
+              <span className="ml-2 text-muted-foreground font-normal">
+                ({data.matched_skills.length})
+              </span>
+            </h3>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {data.matched_skills.map((skill) => (
               <span
                 key={skill}
-                className="rounded-full bg-green-500/10 border border-green-500/20 px-3 py-1 text-xs font-medium text-green-700"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-success/6 text-xs font-medium text-foreground/70"
               >
-                ✓ {skill}
+                <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                {skill}
               </span>
             ))}
           </div>
         </div>
 
-        {/* Real Missing Skills */}
-        <div className="glass-card space-y-3 p-5 border-destructive/20 bg-destructive/5">
-          <div className="flex items-center gap-2">
-            <XCircle className="h-4 w-4 text-destructive" />
-            <h3 className="text-sm font-semibold text-destructive">Missing Skills</h3>
+        {/* Missing Skills */}
+        <div className="surface-elevated p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <AlertTriangle className="h-4 w-4 text-warning" />
+            <h3 className="text-sm font-bold">
+              Skills to Add
+              <span className="ml-2 text-muted-foreground font-normal">
+                ({data.missing_skills.length})
+              </span>
+            </h3>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {data.missing_skills.map((skill) => (
               <span
                 key={skill}
-                className="rounded-full bg-destructive/10 border border-destructive/20 px-3 py-1 text-xs font-medium text-destructive"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-warning/6 text-xs font-medium text-foreground/70"
               >
-                + {skill}
+                {skill}
               </span>
             ))}
           </div>
         </div>
-      </div>
 
-      {/* Dynamic Optimization Tips from AI */}
-      <div className="glass-card space-y-3 p-5">
-        <div className="flex items-center gap-2">
-          <Lightbulb className="h-4 w-4 text-amber-500" />
-          <h3 className="text-sm font-semibold">Strategic Recommendations</h3>
-        </div>
-        <div className="space-y-2">
-          {data.suggestions.map((tip, i) => (
-            <div key={i} className="flex gap-3 rounded-lg bg-secondary/50 px-3 py-2.5 hover:bg-secondary transition-colors">
-              <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <p className="text-sm">{tip}</p>
-            </div>
-          ))}
+        {/* Learning Path */}
+        <div className="surface-elevated p-5 md:col-span-2 lg:col-span-1">
+          <div className="flex items-center gap-2 mb-4">
+            <BookOpen className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-bold">Learning Path</h3>
+          </div>
+          <div className="space-y-3">
+            {data.skill_gap_courses.map((course, i) => (
+              <div
+                key={i}
+                className="group p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors cursor-default"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="text-sm font-semibold">{course.topic}</h4>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                      {course.description}
+                    </p>
+                  </div>
+                  <TrendingUp className="h-3.5 w-3.5 text-primary opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-lg font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground">{label}</p>
     </div>
   );
 }
