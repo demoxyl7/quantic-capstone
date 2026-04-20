@@ -1,45 +1,55 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Zap, AlertCircle, Copy, Check } from "lucide-react";
+import {
+  Sparkles,
+  Zap,
+  AlertCircle,
+  Search,
+  PenLine,
+  FileText,
+  ArrowRight,
+  RotateCcw,
+  CheckCircle2,
+} from "lucide-react";
 import { UploadZone } from "@/components/UploadZone";
 import { JobDescriptionInput } from "@/components/JobDescriptionInput";
-import { ComparisonView } from "@/components/ComparisonView";
+import { ExtractionCard } from "@/components/ExtractionCard";
 import { ResultsDashboard } from "@/components/ResultsDashboard";
+import { OptimizedCVEditor } from "@/components/OptimizedCVEditor";
+import { AppSidebar } from "@/components/AppSidebar";
 
-const API_BASE = typeof window !== "undefined" && window.location.hostname === "localhost"
-  ? "http://127.0.0.1:8000"
-  : "https://quantic-capstone.onrender.com";
+const API_BASE =
+  typeof window !== "undefined" && window.location.hostname === "localhost"
+    ? "http://127.0.0.1:8000"
+    : "https://quantic-capstone.onrender.com";
 
-interface AnalysisResult {
-  score: number;
-  match_status: string;
-  matched_skills: string[];
-  missing_skills: string[];
-  suggestions: string[];
-}
+type Phase = "ANALYZE" | "REFINE" | "COVER_LETTER";
+
+const STEPS = [
+  { key: "ANALYZE" as Phase, label: "Analyze", icon: Search },
+  { key: "REFINE" as Phase, label: "Refine", icon: PenLine },
+  { key: "COVER_LETTER" as Phase, label: "Cover Letter", icon: FileText },
+];
 
 export default function Home() {
+  const [phase, setPhase] = useState<Phase>("ANALYZE");
   const [cvContent, setCvContent] = useState("");
   const [cvFileName, setCvFileName] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
-  const [showResults, setShowResults] = useState(false);
-  const [resultData, setResultData] = useState<AnalysisResult | null>(null);
+  const [resultData, setResultData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  
-  // Cover Letter States
+
   const [coverLetter, setCoverLetter] = useState<string>("");
   const [isGeneratingLetter, setIsGeneratingLetter] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const handleAnalyze = async () => {
     if (!cvContent || !jobDescription) return;
-    
+
     setAnalyzing(true);
-    setShowResults(false);
+    setResultData(null);
     setError(null);
-    setCoverLetter(""); // Reset letter for new analysis
 
     try {
       const response = await fetch(`${API_BASE}/analyze`, {
@@ -54,26 +64,22 @@ export default function Home() {
       const data = await response.json();
 
       if (response.ok) {
-        setResultData(data); 
-        setShowResults(true);
+        setResultData(data);
       } else {
-        if (response.status === 429) {
-          setError("AI limit reached. Please wait 60 seconds and try again.");
-        } else {
-          setError(data.detail || "The AI brain tripped. Please try again.");
-        }
+        setError(data.detail || "Analysis failed. Please try again.");
       }
-    } catch (error) {
-      setError("Cannot reach backend server. Ensure it's running.");
+    } catch {
+      setError("Cannot reach the server. Make sure the backend is running.");
     } finally {
-      setTimeout(() => setAnalyzing(false), 2000);
+      setAnalyzing(false);
     }
   };
 
   const handleGenerateCoverLetter = async () => {
     if (!cvContent || !jobDescription) return;
-    
     setIsGeneratingLetter(true);
+    setPhase("COVER_LETTER");
+
     try {
       const response = await fetch(`${API_BASE}/generate-cover-letter`, {
         method: "POST",
@@ -85,122 +91,330 @@ export default function Home() {
       });
 
       if (!response.ok) throw new Error("Generation failed");
-      
+
       const data = await response.json();
       setCoverLetter(data.cover_letter);
     } catch (err) {
-      console.error("Cover Letter Error:", err);
-      alert("Could not generate cover letter. Please try again.");
+      console.error(err);
+      setError("Failed to generate cover letter. Please try again.");
     } finally {
       setIsGeneratingLetter(false);
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(coverLetter);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const canAnalyze = cvContent.length > 0 && jobDescription.length > 0;
 
+  const handleReset = () => {
+    setPhase("ANALYZE");
+    setCoverLetter("");
+    setResultData(null);
+    setCvContent("");
+    setCvFileName("");
+    setJobDescription("");
+    setError(null);
+  };
+
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
-      <main className="flex-1 overflow-y-auto">
-        <header className="sticky top-0 z-10 border-b border-border bg-background/80 backdrop-blur-lg">
-          <div className="flex items-center justify-between px-6 py-4">
+    <div className="flex h-screen overflow-hidden surface-base">
+      <AppSidebar
+        currentPhase={phase}
+        onPhaseChange={setPhase}
+        hasResults={!!resultData}
+      />
+
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Top bar */}
+        <header
+          className="shrink-0 border-b px-8 py-4 z-10"
+          style={{
+            borderColor: "var(--color-border)",
+            backgroundColor: "color-mix(in srgb, var(--color-card) 60%, transparent)",
+            backdropFilter: "blur(16px)",
+          }}
+        >
+          <div className="flex items-center justify-between max-w-5xl mx-auto">
             <div>
-              <h1 className="text-xl font-bold">Action Center</h1>
-              <p className="text-sm text-muted-foreground font-mono">
-                {cvFileName ? `Target: ${cvFileName}` : "Upload CV & match with Job Posting"}
+              <h1 className="text-xl font-bold text-foreground">
+                {phase === "ANALYZE" && "Analyze Your Fit"}
+                {phase === "REFINE" && "Refine Your CV"}
+                {phase === "COVER_LETTER" && "Write Cover Letter"}
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {phase === "ANALYZE" &&
+                  "Upload your CV and paste the job description to get started"}
+                {phase === "REFINE" &&
+                  "Review and apply AI-suggested improvements"}
+                {phase === "COVER_LETTER" &&
+                  "Generate a tailored cover letter for this role"}
               </p>
+            </div>
+
+            {/* Step Progress */}
+            <div className="hidden md:flex items-center gap-1 bg-secondary p-1.5 rounded-xl">
+              {STEPS.map((step, i) => {
+                const isActive = phase === step.key;
+                const isDone =
+                  i < STEPS.findIndex((s) => s.key === phase);
+                const StepIcon = step.icon;
+
+                return (
+                  <button
+                    key={step.key}
+                    onClick={() => {
+                      if (isDone || isActive) setPhase(step.key);
+                    }}
+                    className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                      isActive
+                        ? "bg-card text-foreground shadow-sm"
+                        : isDone
+                          ? "text-primary cursor-pointer hover:bg-card/50"
+                          : "text-muted-foreground cursor-default opacity-40"
+                    }`}
+                  >
+                    {isDone ? (
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                    ) : (
+                      <StepIcon className="h-3.5 w-3.5" />
+                    )}
+                    {step.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </header>
 
-        <div className="space-y-6 p-6 max-w-5xl mx-auto">
-          {error && (
-            <div className="flex items-center gap-2 p-4 mb-4 text-sm text-red-800 rounded-lg bg-red-50 border border-red-200">
-              <AlertCircle className="h-4 w-4" />
-              <span>{error}</span>
-            </div>
-          )}
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-5xl mx-auto px-8 py-10 pb-24 space-y-10">
+            {/* Error banner */}
+            {error && (
+              <div className="flex items-center gap-3 p-4 text-sm rounded-xl bg-destructive/5 border border-destructive/15 text-destructive animate-fade-in">
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span className="font-medium">{error}</span>
+                <button
+                  onClick={() => setError(null)}
+                  className="ml-auto text-xs font-semibold underline underline-offset-2 hover:no-underline"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Upload CV</label>
-              <UploadZone
-                apiBase={API_BASE}
-                onFileContent={(content, name) => {
-                  setCvContent(content);
-                  setCvFileName(name);
-                }}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Job Posting</label>
-              <JobDescriptionInput value={jobDescription} onChange={setJobDescription} />
-            </div>
-          </div>
-
-          <div className="flex justify-center py-4">
-            <button
-              onClick={handleAnalyze}
-              disabled={!canAnalyze || analyzing}
-              className={`glow-button flex items-center gap-2 px-8 py-3 rounded-full font-semibold transition-all ${
-                analyzing 
-                  ? "bg-gray-400 cursor-not-allowed text-white" 
-                  : "bg-primary text-primary-foreground hover:scale-105"
-              }`}
-            >
-              <Sparkles className={`h-4 w-4 ${analyzing ? "animate-spin" : ""}`} />
-              {analyzing ? "Synthesizing AI Insights..." : "Analyze Match"}
-            </button>
-          </div>
-
-          {showResults && resultData && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-10 duration-700">
-              <ResultsDashboard visible={showResults} data={resultData} />
-              
-              {/* New Cover Letter Section */}
-              <div className="p-6 bg-card rounded-xl border border-border shadow-sm">
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                  <Zap className="h-5 w-5 text-yellow-500" />
-                  AI Cover Letter Generator
-                </h3>
-                
-                {!coverLetter ? (
-                  <button
-                    onClick={handleGenerateCoverLetter}
-                    disabled={isGeneratingLetter}
-                    className="bg-secondary text-secondary-foreground px-6 py-2 rounded-lg hover:bg-secondary/80 transition-colors disabled:opacity-50 flex items-center gap-2"
-                  >
-                    {isGeneratingLetter ? (
-                      <>
-                        <div className="h-4 w-4 border-2 border-current border-t-transparent animate-spin rounded-full" />
-                        Drafting Letter...
-                      </>
-                    ) : "Generate Customized Cover Letter"}
-                  </button>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="p-5 bg-muted/50 rounded-lg whitespace-pre-wrap text-sm leading-relaxed border border-border italic text-muted-foreground">
-                      {coverLetter}
+            {/* ===== PHASE 1: ANALYZE ===== */}
+            {phase === "ANALYZE" && (
+              <div className="space-y-10 animate-fade-in">
+                {/* Input Cards */}
+                <div className="grid gap-6 lg:grid-cols-2">
+                  {/* Upload */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                        1
+                      </span>
+                      <h3 className="text-sm font-semibold text-muted-foreground">
+                        Your CV
+                      </h3>
                     </div>
-                    <button 
-                      onClick={copyToClipboard}
-                      className="flex items-center gap-2 text-xs bg-primary text-primary-foreground px-4 py-2 rounded-md hover:opacity-90 transition-opacity"
-                    >
-                      {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-                      {copied ? "Copied!" : "Copy to Clipboard"}
-                    </button>
+                    <UploadZone
+                      apiBase={API_BASE}
+                      onFileContent={(content, name) => {
+                        setCvContent(content);
+                        setCvFileName(name);
+                      }}
+                    />
                   </div>
+
+                  {/* Job Description */}
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2.5">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">
+                        2
+                      </span>
+                      <h3 className="text-sm font-semibold text-muted-foreground">
+                        Job Description
+                      </h3>
+                    </div>
+                    <JobDescriptionInput
+                      value={jobDescription}
+                      onChange={setJobDescription}
+                    />
+                  </div>
+                </div>
+
+                {/* Action */}
+                <div className="flex flex-col items-center gap-3">
+                  <button
+                    id="analyze-button"
+                    onClick={handleAnalyze}
+                    disabled={!canAnalyze || analyzing}
+                    className={`btn-primary px-10 py-3.5 text-base font-bold ${
+                      analyzing ? "animate-pulse-soft" : ""
+                    }`}
+                  >
+                    <Sparkles
+                      className={`h-4 w-4 ${analyzing ? "animate-spin" : ""}`}
+                    />
+                    {analyzing
+                      ? "Analyzing your profile..."
+                      : "Analyze Match"}
+                  </button>
+                  <p className="text-xs text-muted-foreground/60">
+                    Powered by Llama 3.3 — takes about 15 seconds
+                  </p>
+                </div>
+
+                {/* Results */}
+                {resultData && (
+                  <section className="space-y-8 animate-fade-in-up">
+                    <ResultsDashboard
+                      visible={!!resultData}
+                      data={resultData}
+                    />
+
+                    <div className="grid gap-6 md:grid-cols-2">
+                      <ExtractionCard
+                        title="Your CV Summary"
+                        type="cv"
+                        data={resultData.extraction.cv_data}
+                      />
+                      <ExtractionCard
+                        title="What They Want"
+                        type="jd"
+                        data={resultData.extraction.jd_data}
+                      />
+                    </div>
+
+                    <div className="flex justify-center pt-4">
+                      <button
+                        id="go-to-refine"
+                        onClick={() => setPhase("REFINE")}
+                        className="group btn-primary px-8 py-3.5 text-base"
+                      >
+                        Continue to CV Optimization
+                        <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                      </button>
+                    </div>
+                  </section>
                 )}
               </div>
+            )}
 
-              <ComparisonView cvContent={cvContent} jobDescription={jobDescription} visible={showResults} />
-            </div>
-          )}
+            {/* ===== PHASE 2: REFINE ===== */}
+            {phase === "REFINE" && resultData && (
+              <div className="space-y-8 animate-fade-in">
+                <OptimizedCVEditor
+                  suggestions={resultData.suggestions}
+                />
+
+                <div className="flex items-center justify-center gap-4 pt-4">
+                  <button
+                    onClick={() => setPhase("ANALYZE")}
+                    className="btn-ghost text-sm"
+                  >
+                    ← Back to Results
+                  </button>
+                  <button
+                    id="go-to-cover-letter"
+                    onClick={() => setPhase("COVER_LETTER")}
+                    className="group btn-primary px-8 py-3"
+                  >
+                    Write Cover Letter
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ===== PHASE 3: COVER LETTER ===== */}
+            {phase === "COVER_LETTER" && (
+              <div className="max-w-3xl mx-auto space-y-8 animate-fade-in">
+                <div className="surface-elevated p-8 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/8 mx-auto mb-5">
+                    <Zap className="h-7 w-7 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-bold mb-2">AI Cover Letter</h3>
+                  <p className="text-sm text-muted-foreground mb-6 max-w-md mx-auto leading-relaxed">
+                    Generate a professional cover letter that highlights your
+                    strengths and addresses the role&apos;s specific
+                    requirements.
+                  </p>
+
+                  {!coverLetter ? (
+                    <button
+                      id="generate-cover-letter"
+                      onClick={handleGenerateCoverLetter}
+                      disabled={isGeneratingLetter}
+                      className={`btn-primary px-8 py-3 ${
+                        isGeneratingLetter ? "animate-pulse-soft" : ""
+                      }`}
+                    >
+                      {isGeneratingLetter ? (
+                        <>
+                          <RotateCcw className="h-4 w-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-4 w-4" />
+                          Generate Cover Letter
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="space-y-4 text-left animate-fade-in-up">
+                      <div className="relative">
+                        <textarea
+                          id="cover-letter-editor"
+                          className="textarea-field min-h-[400px] bg-card border border-border"
+                          value={coverLetter}
+                          onChange={(e) => setCoverLetter(e.target.value)}
+                        />
+                        <span className="absolute top-3 right-3 badge badge-primary text-[10px]">
+                          Editable
+                        </span>
+                      </div>
+                      <div className="flex gap-3">
+                        <button
+                          onClick={handleGenerateCoverLetter}
+                          disabled={isGeneratingLetter}
+                          className="btn-secondary flex-1"
+                        >
+                          <RotateCcw className="h-3.5 w-3.5" />
+                          Regenerate
+                        </button>
+                        <button
+                          id="copy-cover-letter"
+                          onClick={() => {
+                            navigator.clipboard.writeText(coverLetter);
+                          }}
+                          className="btn-primary flex-1"
+                        >
+                          Copy to Clipboard
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-center gap-4">
+                  <button
+                    onClick={() => setPhase("REFINE")}
+                    className="btn-ghost text-sm"
+                  >
+                    ← Back to Refine
+                  </button>
+                  <button
+                    onClick={handleReset}
+                    className="btn-ghost text-sm text-muted-foreground"
+                  >
+                    <RotateCcw className="h-3 w-3" />
+                    Start Over
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </main>
     </div>
