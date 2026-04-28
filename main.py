@@ -90,6 +90,7 @@ class CVStructured(BaseModel):
     experience: list[CVExperience]
     projects: list[CVProject] # Added projects
     education: list[CVEducation]
+    certifications: list[str]
     skills: list[str]
 
 class JDData(BaseModel):
@@ -105,7 +106,7 @@ class CVExtraction(BaseModel):
 class Suggestion(BaseModel):
     id: str
     target_id: str
-    type: str # summary, experience_bullet, project_description, education_detail
+    type: str # summary, experience_bullet, project_description, education_detail, add_experience_bullet, add_project
     issue: str
     original_text: str
     replacement_text: str
@@ -201,6 +202,7 @@ async def analyze_cv(request: AnalysisRequest):
     - Include ALL Experience records. Assign each record an ID like "exp_1" and each bullet point an ID like "b_1".
     - Include ALL Projects. Assign each record an ID like "proj_1".
     - Include ALL Education records. Assign each record an ID like "edu_1" and each detail bullet an ID like "ed_1".
+    - Include ALL Certifications.
     - Include ALL Skills.
     
     STEP 2: Extract structured data from the JD (Role, Skills, Responsibilities, Qualifications).
@@ -209,8 +211,9 @@ async def analyze_cv(request: AnalysisRequest):
     
     STEP 4: Provide EXACTLY 5 targeted improvement suggestions. 
     - Each suggestion must reference a `target_id` from the extracted CV data.
-    - `type` MUST be one of: "summary", "experience_bullet", "project_description", "education_detail".
-    - Provide the `original_text` and a `replacement_text` that better aligns with the JD.
+    - `type` MUST be one of: "summary", "experience_bullet", "project_description", "education_detail", "add_experience_bullet".
+    - Use "add_experience_bullet" to suggest a NEW bullet point for an experience record (target_id should be the exp_id).
+    - Provide the `original_text` (empty for additions) and a `replacement_text` that better aligns with the JD.
     
     STEP 5: Suggest 3-4 course topics to bridge skill gaps.
     
@@ -238,6 +241,7 @@ async def analyze_cv(request: AnalysisRequest):
           "education": [
             {{ "id": "edu_1", "degree": "", "institution": "", "dates": "", "details": [ {{ "id": "ed_1", "text": "" }} ] }}
           ],
+          "certifications": [],
           "skills": []
         }},
         "jd_data": {{ "role": "", "skills": [], "responsibilities": [], "qualifications": [] }}

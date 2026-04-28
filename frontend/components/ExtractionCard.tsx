@@ -1,4 +1,4 @@
-import { CheckCircle2, List, GraduationCap, Briefcase } from "lucide-react";
+import { CheckCircle2, List, GraduationCap, Briefcase, Sparkles } from "lucide-react";
 
 interface Experience {
   title: string;
@@ -33,6 +33,7 @@ interface ExtractionCardProps {
     experience?: Experience[];
     projects?: Project[];
     education?: Education[];
+    certifications?: string[];
     role?: string;
     summary?: string;
     responsibilities?: string[];
@@ -83,25 +84,40 @@ export function ExtractionCard({ title, type, data }: ExtractionCardProps) {
           </div>
         )}
 
-        {/* Skills */}
-        {data.skills && data.skills.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <CheckCircle2 className="h-3 w-3" />
-              <span>Skills</span>
+        {/* Certifications */}
+        {(data.certifications as string[])?.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-primary">
+              <CheckCircle2 className="h-4 w-4" />
+              <span className="text-xs font-bold uppercase tracking-wider">Certifications</span>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {data.skills.map((skill, index) => (
-                <span
-                  key={index}
-                  className="px-2.5 py-1 bg-secondary text-xs font-medium rounded-md text-foreground/70"
-                >
-                  {skill}
-                </span>
-              ))}
+            <div className="p-4 bg-muted/30 border border-border rounded-xl">
+              <ul className="list-disc ml-4 space-y-1">
+                {(data.certifications as string[]).map((cert, i) => (
+                  <li key={i} className="text-sm leading-relaxed">{cert}</li>
+                ))}
+              </ul>
             </div>
           </div>
         )}
+
+        {/* Skills */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-primary">
+            <Sparkles className="h-4 w-4" />
+            <span className="text-xs font-bold uppercase tracking-wider">Skills & Technologies</span>
+          </div>
+          <div className="p-4 bg-muted/30 border border-border rounded-xl flex flex-wrap gap-2">
+            {(data.skills as string[])?.map((skill: string, i: number) => (
+              <span 
+                key={i}
+                className="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold uppercase rounded"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
 
         {/* Responsibilities / Experience */}
         {(type === "jd" ? data.responsibilities : data.experience) && (
