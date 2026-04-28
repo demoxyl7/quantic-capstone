@@ -99,18 +99,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class Experience(BaseModel):
-    title: str
-    company: str
-    period: str
-    description: str
-
-class CVStructured(BaseModel):
-    name: str = "Candidate"
-    skills: list[str]
-    experience: list[Experience]
-    education: list[str]
-
 class CVPersonalInfo(BaseModel):
     name: str
     email: str
@@ -121,46 +109,6 @@ class CVPersonalInfo(BaseModel):
 class CVExperienceBullet(BaseModel):
     id: str
     text: str
-
-class CVExperience(BaseModel):
-    id: str
-    title: str
-    company: str
-    location: str
-    dates: str
-    bullets: list[CVExperienceBullet]
-
-class CVEducationDetail(BaseModel):
-    id: str
-    text: str
-
-class CVEducation(BaseModel):
-    id: str
-    degree: str
-    institution: str
-    dates: str
-    details: list[CVEducationDetail]
-
-class CVProject(BaseModel):
-    id: str
-    name: str
-    description: str
-    technologies: list[str]
-
-class CVStructured(BaseModel):
-    personal_info: CVPersonalInfo
-    summary: str
-    experience: list[CVExperience]
-    projects: list[CVProject] # Added projects
-    education: list[CVEducation]
-    certifications: list[str]
-    skills: list[str]
-
-class JDData(BaseModel):
-    role: str
-    skills: list[str]
-    responsibilities: list[str]
-    qualifications: list[str]
 
 class CVExtraction(BaseModel):
     cv_data: CVStructured
@@ -203,10 +151,10 @@ async def root():
     return {"status": "online", "db": bool(DATABASE_URL)}
 
 @app.post("/analyze")
-async def analyze_cv(request: AnalysisRequest):
+async def analyze_cv(request: AnalysisRequest, client_request: Request):
     if not client:
         raise HTTPException(status_code=500, detail="AI Client not initialized.")
-        
+    
     client_ip = client_request.headers.get("x-forwarded-for") or client_request.client.host
     log_usage(client_ip, request.cv_text)    
     
@@ -237,14 +185,10 @@ async def analyze_cv(request: AnalysisRequest):
     
     STEP 5: Suggest 3-4 course topics to bridge skill gaps.
     
-    prompt = f"""
-    Analyze the CV and JD. Return ONLY JSON.
-    CV: {request.cv_text[:5000]}
-    JD: {request.job_description[:5000]}
+    CV: {cv_text}
+    JD: {jd_text}
     
-    CRITICAL: For suggestions, the 'xml_target' MUST be an EXACT, 100% case-sensitive 
-    phrase from the CV text. 
-
+    Return ONLY a JSON object with this exact structure:
     {{
       "is_cv": boolean,
       "error_message": "string",
@@ -273,7 +217,7 @@ async def analyze_cv(request: AnalysisRequest):
       "suggestions": [
         {{ "id": "s1", "target_id": "b_1", "type": "experience_bullet", "issue": "", "original_text": "", "replacement_text": "", "reason": "" }}
       ],
-      "skill_gap_courses": []
+      "skill_gap_courses": [{{ "topic": "string", "description": "string" }}]
     }}
     
     IMPORTANT RULES:
@@ -282,6 +226,7 @@ async def analyze_cv(request: AnalysisRequest):
     3. TARGETED SUGGESTIONS: Only suggest improvements for sections that exist.
     4. NON-CV CONTENT: If the document isn't a CV, set `is_cv` to false.
     """
+    
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -293,34 +238,61 @@ async def analyze_cv(request: AnalysisRequest):
         )
         
         result = json.loads(response.choices[0].message.content.strip())
-        
-        # Guard against non-CV documents
-        if result.get("is_cv") == False:
-            # We still return the object but the frontend should handle the error_message
-            pass
-            
         return result
 
     except Exception as e:
         print(f"ANALYSIS ERROR: {e}")
         raise HTTPException(status_code=500, detail=f"AI Analysis failed: {str(e)}")
 
+@app.post("/generate-cover-letter")
+async def generate_cover_letter(request: CoverLetterRequest):
+    if not client:
+        raise HTTPException(status_code=500, detail="AI Client not initialized.")
+    
+    safe_cv = request.cv_text[:5000]
+    safe_jd = request.job_description[:5000]
+
+    prompt = f"""
+    Write a high-impact, professional cover letter.
+    CANDIDATE CV: {safe_cv}
+    TARGET JOB: {safe_jd}
+    
+    INSTRUCTIONS:
+    1. Focus on bridging the gap between technical expertise and business value.
+    2. Mention specific tools or achievements found in the CV that match the JD.
+    3. Keep it under 350 words.
+    4. Use a modern, professional tone (no generic "To Whom It May Concern").
+    
+    Return ONLY the cover letter text.
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": "You are an executive career coach and expert cover letter writer."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7 
+        )
+        return {"cover_letter": response.choices[0].message.content.strip()}
+    except Exception as e:
+        print(f"COVER LETTER ERROR: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate cover letter.")        
+
 @app.post("/apply-suggestions")
 async def apply_edits(file: UploadFile = File(...), suggestions_json: str = File(...)):
-    # This endpoint allows the user to upload their DOCX and apply the AI's suggestions
     suggestions = json.loads(suggestions_json)
-    
     try:
         content = await file.read()
         with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
             tmp.write(content)
             tmp_path = tmp.name
         
-        count = apply_cv_suggestions(tmp_path, suggestions)
+        apply_cv_suggestions(tmp_path, suggestions)
         
         with open(tmp_path, "rb") as f:
             updated_data = f.read()
-            
         os.remove(tmp_path)
         
         return Response(
@@ -331,7 +303,6 @@ async def apply_edits(file: UploadFile = File(...), suggestions_json: str = File
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Edit failed: {str(e)}")
 
-# Restore the original PDF to DOCX route
 @app.post("/convert-pdf-to-docx")
 async def convert_pdf_to_docx(file: UploadFile = File(...)):
     try:

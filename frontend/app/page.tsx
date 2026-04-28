@@ -63,7 +63,6 @@ interface CVData {
     phone: string;
     linkedin: string;
     location: string;
-    links: { label: string; url: string }[];
   };
   summary: string;
   experience: Experience[];
