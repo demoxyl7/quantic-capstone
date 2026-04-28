@@ -1,33 +1,96 @@
 import os
 import io
-import re
 import json
 import time
 from typing import Optional, List
-from fastapi import FastAPI, UploadFile, File, HTTPException
+import tempfile
+import psycopg2
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from pydantic import BaseModel
-from pypdf import PdfReader
-import docx
-from groq import Groq  # Swapped from google.genai
+from pdf2docx import Converter
+from docx import Document # Added for DOCX manipulation
+from groq import Groq 
 from dotenv import load_dotenv
 
-
-# 1. Load Environment Variables
 load_dotenv() 
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
-if not GROQ_API_KEY:
-    print("❌ ERROR: GROQ_API_KEY not found in environment!")
-    client = None
-else:
-    print("✅ SUCCESS: Groq API Key loaded.")
-    client = Groq(api_key=GROQ_API_KEY)
+if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+client = Groq(api_key=GROQ_API_KEY) if GROQ_API_KEY else None
+
+# --- DATABASE LOGIC ---
+def init_db():
+    if not DATABASE_URL: return
+    try:
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cur = conn.cursor()
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS usage_logs (
+                id SERIAL PRIMARY KEY,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                ip_address TEXT,
+                cv_preview TEXT
+            );
+        """)
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e: print(f"DB Error: {e}")
+
+def log_usage(ip: str, text: str):
+    if not DATABASE_URL: return
+    try:
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        cur = conn.cursor()
+        cur.execute("INSERT INTO usage_logs (ip_address, cv_preview) VALUES (%s, %s)", (ip, text[:500]))
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e: print(f"Log Error: {e}")
+
+# --- DOCX MANIPULATION LOGIC ---
+def apply_cv_suggestions(docx_path, suggestions):
+    doc = Document(docx_path)
+    applied_count = 0
+
+    for suggestion in suggestions:
+        target = suggestion.get("xml_target")
+        replacement = suggestion.get("replacement")
+        
+        if not target or not replacement: continue
+
+        for para in doc.paragraphs:
+            # JOIN RUNS: This merges fragmented XML nodes so the target can be found
+            full_text = "".join(run.text for run in para.runs)
+            
+            if target in full_text:
+                new_text = full_text.replace(target, replacement)
+                # Clear existing fragmented runs
+                for run in para.runs:
+                    run.text = ""
+                # Put the corrected text into the first run
+                if para.runs:
+                    para.runs[0].text = new_text
+                else:
+                    para.add_run(new_text)
+                applied_count += 1
+    
+    doc.save(docx_path)
+    return applied_count
+
+# --- APP SETUP ---
 app = FastAPI()
 
-# 2. Middleware
+@app.on_event("startup")
+async def startup_event():
+    init_db()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"], 
@@ -137,58 +200,15 @@ class CoverLetterRequest(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"status": "online", "api_key_configured": bool(GROQ_API_KEY)}
-
-import tempfile
-from fastapi.responses import Response
-from pdf2docx import Converter
-
-@app.post("/convert-pdf-to-docx")
-async def convert_pdf_to_docx(file: UploadFile = File(...)):
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported for conversion")
-        
-    try:
-        content = await file.read()
-        
-        # Step 1: Write PDF to temp file
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf_file:
-            pdf_file.write(content)
-            pdf_path = pdf_file.name
-            
-        docx_path = pdf_path.replace(".pdf", ".docx")
-        
-        # Step 2: Convert PDF to DOCX
-        cv = Converter(pdf_path)
-        cv.convert(docx_path)
-        cv.close()
-        
-        # Step 3: Read generated DOCX
-        with open(docx_path, "rb") as docx_file:
-            docx_data = docx_file.read()
-            
-        # Cleanup
-        os.remove(pdf_path)
-        if os.path.exists(docx_path):
-            os.remove(docx_path)
-            
-        # Step 4: Return File Response
-        response = Response(content=docx_data, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-        response.headers["Content-Disposition"] = f"attachment; filename={file.filename.replace('.pdf', '.docx')}"
-        return response
-        
-    except Exception as e:
-        # Cleanup on failure
-        if 'pdf_path' in locals() and os.path.exists(pdf_path):
-            os.remove(pdf_path)
-        if 'docx_path' in locals() and os.path.exists(docx_path):
-            os.remove(docx_path)
-        raise HTTPException(status_code=500, detail=f"PDF conversion failed: {str(e)}")
+    return {"status": "online", "db": bool(DATABASE_URL)}
 
 @app.post("/analyze")
 async def analyze_cv(request: AnalysisRequest):
     if not client:
         raise HTTPException(status_code=500, detail="AI Client not initialized.")
+        
+    client_ip = client_request.headers.get("x-forwarded-for") or client_request.client.host
+    log_usage(client_ip, request.cv_text)    
     
     cv_text = request.cv_text[:6000]
     jd_text = request.job_description[:6000]
@@ -217,10 +237,14 @@ async def analyze_cv(request: AnalysisRequest):
     
     STEP 5: Suggest 3-4 course topics to bridge skill gaps.
     
-    CV: {cv_text}
-    JD: {jd_text}
+    prompt = f"""
+    Analyze the CV and JD. Return ONLY JSON.
+    CV: {request.cv_text[:5000]}
+    JD: {request.job_description[:5000]}
     
-    Return ONLY a JSON object with this exact structure:
+    CRITICAL: For suggestions, the 'xml_target' MUST be an EXACT, 100% case-sensitive 
+    phrase from the CV text. 
+
     {{
       "is_cv": boolean,
       "error_message": "string",
@@ -249,7 +273,7 @@ async def analyze_cv(request: AnalysisRequest):
       "suggestions": [
         {{ "id": "s1", "target_id": "b_1", "type": "experience_bullet", "issue": "", "original_text": "", "replacement_text": "", "reason": "" }}
       ],
-      "skill_gap_courses": [{{ "topic": "string", "description": "string" }}]
+      "skill_gap_courses": []
     }}
     
     IMPORTANT RULES:
@@ -258,7 +282,6 @@ async def analyze_cv(request: AnalysisRequest):
     3. TARGETED SUGGESTIONS: Only suggest improvements for sections that exist.
     4. NON-CV CONTENT: If the document isn't a CV, set `is_cv` to false.
     """
-    
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
@@ -282,39 +305,48 @@ async def analyze_cv(request: AnalysisRequest):
         print(f"ANALYSIS ERROR: {e}")
         raise HTTPException(status_code=500, detail=f"AI Analysis failed: {str(e)}")
 
-@app.post("/generate-cover-letter")
-async def generate_cover_letter(request: CoverLetterRequest):
-    if not client:
-        raise HTTPException(status_code=500, detail="AI Client not initialized.")
-    
-    # We allow more characters for the cover letter to get better context
-    safe_cv = request.cv_text[:5000]
-    safe_jd = request.job_description[:5000]
-
-    prompt = f"""
-    Write a high-impact, professional cover letter.
-    CANDIDATE CV: {safe_cv}
-    TARGET JOB: {safe_jd}
-    
-    INSTRUCTIONS:
-    1. Focus on bridging the gap between technical expertise and business value.
-    2. Mention specific tools or achievements found in the CV that match the JD.
-    3. Keep it under 350 words.
-    4. Use a modern, professional tone (no generic "To Whom It May Concern").
-    
-    Return ONLY the cover letter text.
-    """
+@app.post("/apply-suggestions")
+async def apply_edits(file: UploadFile = File(...), suggestions_json: str = File(...)):
+    # This endpoint allows the user to upload their DOCX and apply the AI's suggestions
+    suggestions = json.loads(suggestions_json)
     
     try:
-        response = client.chat.completions.create(
-            model="llama-3.1-8b-instant", # Using the fast model for now
-            messages=[
-                {"role": "system", "content": "You are an executive career coach and expert cover letter writer."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.7 
+        content = await file.read()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
+            tmp.write(content)
+            tmp_path = tmp.name
+        
+        count = apply_cv_suggestions(tmp_path, suggestions)
+        
+        with open(tmp_path, "rb") as f:
+            updated_data = f.read()
+            
+        os.remove(tmp_path)
+        
+        return Response(
+            content=updated_data,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": "attachment; filename=Improved_CV.docx"}
         )
-        return {"cover_letter": response.choices[0].message.content.strip()}
     except Exception as e:
-        print(f"COVER LETTER ERROR: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate cover letter.")        
+        raise HTTPException(status_code=500, detail=f"Edit failed: {str(e)}")
+
+# Restore the original PDF to DOCX route
+@app.post("/convert-pdf-to-docx")
+async def convert_pdf_to_docx(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf_file:
+            pdf_file.write(content)
+            pdf_path = pdf_file.name
+        docx_path = pdf_path.replace(".pdf", ".docx")
+        cv = Converter(pdf_path)
+        cv.convert(docx_path)
+        cv.close()
+        with open(docx_path, "rb") as docx_file:
+            docx_data = docx_file.read()
+        os.remove(pdf_path)
+        if os.path.exists(docx_path): os.remove(docx_path)
+        return Response(content=docx_data, media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
