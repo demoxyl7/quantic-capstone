@@ -3,6 +3,7 @@ import io
 import re
 import json
 import time
+from typing import Optional, List
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -47,20 +48,83 @@ class CVStructured(BaseModel):
     experience: list[Experience]
     education: list[str]
 
-class JDStructured(BaseModel):
+class CVPersonalInfo(BaseModel):
+    name: str
+    email: str
+    phone: str
+    linkedin: str
+    location: str
+
+class CVExperienceBullet(BaseModel):
+    id: str
+    text: str
+
+class CVExperience(BaseModel):
+    id: str
+    title: str
+    company: str
+    location: str
+    dates: str
+    bullets: list[CVExperienceBullet]
+
+class CVEducationDetail(BaseModel):
+    id: str
+    text: str
+
+class CVEducation(BaseModel):
+    id: str
+    degree: str
+    institution: str
+    dates: str
+    details: list[CVEducationDetail]
+
+class CVProject(BaseModel):
+    id: str
+    name: str
+    description: str
+    technologies: list[str]
+
+class CVStructured(BaseModel):
+    personal_info: CVPersonalInfo
+    summary: str
+    experience: list[CVExperience]
+    projects: list[CVProject] # Added projects
+    education: list[CVEducation]
+    skills: list[str]
+
+class JDData(BaseModel):
     role: str
     skills: list[str]
     responsibilities: list[str]
     qualifications: list[str]
 
+class CVExtraction(BaseModel):
+    cv_data: CVStructured
+    jd_data: JDData
+
 class Suggestion(BaseModel):
     id: str
-    section: str
-    type: str
+    target_id: str
+    type: str # summary, experience_bullet, project_description, education_detail
     issue: str
-    xml_target: str
-    replacement: str
+    original_text: str
+    replacement_text: str
     reason: str
+
+class SkillGapCourse(BaseModel):
+    topic: str
+    description: str
+
+class AnalysisResponse(BaseModel):
+    is_cv: bool
+    error_message: Optional[str] = None
+    score: int
+    match_status: str
+    matched_skills: list[str]
+    missing_skills: list[str]
+    extraction: CVExtraction
+    suggestions: list[Suggestion]
+    skill_gap_courses: list[SkillGapCourse]
 
 class AnalysisRequest(BaseModel):
     cv_text: str
@@ -68,16 +132,7 @@ class AnalysisRequest(BaseModel):
 
 class CoverLetterRequest(BaseModel):
     cv_text: str
-    job_description: str    
-
-class AnalysisResponse(BaseModel):
-    score: int
-    match_status: str
-    matched_skills: list[str]
-    missing_skills: list[str]
-    extraction: dict # Will contain cv_data and jd_data
-    suggestions: list[Suggestion]
-    skill_gap_courses: list[dict] # {topic: str, description: str}
+    job_description: str
 
 @app.get("/")
 async def root():
@@ -138,57 +193,90 @@ async def analyze_cv(request: AnalysisRequest):
     jd_text = request.job_description[:6000]
 
     prompt = f"""
-    You are an expert career architect. Analyze the provided CV and Job Description.
+    You are an expert career consultant. Analyze the following CV and Job Description.
     
-    STEP 1: Extract structured data from the CV (Skills, Experience, Education).
-    STEP 2: Extract structured data from the JD (Core Requirements, Responsibilities, Qualifications).
-    STEP 3: Compare both and generate a match score (0-100).
-    STEP 4: You are a professional CV editor. Find EXACTLY 5 exact text phrases in the CV that should be improved to match the JD.
-    STEP 5: Suggest 3-4 course topics or learning paths to bridge skill gaps.
+    STEP 1: Extract the CV data VERBATIM. 
+    - Include Personal Info (Name, Email, Phone, LinkedIn, Location).
+    - Include a Professional Summary.
+    - Include ALL Experience records. Assign each record an ID like "exp_1" and each bullet point an ID like "b_1".
+    - Include ALL Projects. Assign each record an ID like "proj_1".
+    - Include ALL Education records. Assign each record an ID like "edu_1" and each detail bullet an ID like "ed_1".
+    - Include ALL Skills.
+    
+    STEP 2: Extract structured data from the JD (Role, Skills, Responsibilities, Qualifications).
+    
+    STEP 3: Generate a match score (0-100) and match status.
+    
+    STEP 4: Provide EXACTLY 5 targeted improvement suggestions. 
+    - Each suggestion must reference a `target_id` from the extracted CV data.
+    - `type` MUST be one of: "summary", "experience_bullet", "project_description", "education_detail".
+    - Provide the `original_text` and a `replacement_text` that better aligns with the JD.
+    
+    STEP 5: Suggest 3-4 course topics to bridge skill gaps.
     
     CV: {cv_text}
     JD: {jd_text}
     
     Return ONLY a JSON object with this exact structure:
     {{
+      "is_cv": boolean,
+      "error_message": "string",
       "score": number,
       "match_status": "string",
       "matched_skills": ["string"],
       "missing_skills": ["string"],
       "extraction": {{
-        "cv_data": {{ "skills": [], "experience": [{{ "title": "", "company": "", "description": "" }}], "education": [] }},
+        "cv_data": {{ 
+          "personal_info": {{ "name": "", "email": "", "phone": "", "linkedin": "", "location": "" }},
+          "summary": "",
+          "experience": [
+            {{ "id": "exp_1", "title": "", "company": "", "location": "", "dates": "", "bullets": [ {{ "id": "b_1", "text": "" }} ] }}
+          ],
+          "projects": [
+            {{ "id": "proj_1", "name": "", "description": "", "technologies": [] }}
+          ],
+          "education": [
+            {{ "id": "edu_1", "degree": "", "institution": "", "dates": "", "details": [ {{ "id": "ed_1", "text": "" }} ] }}
+          ],
+          "skills": []
+        }},
         "jd_data": {{ "role": "", "skills": [], "responsibilities": [], "qualifications": [] }}
       }},
       "suggestions": [
-        {{ 
-          "id": "s1", 
-          "section": "Summary / Experience / Skills / Education", 
-          "type": "quantify / strengthen / clarify / format", 
-          "issue": "max 10 words", 
-          "xml_target": "exact phrase from CV text, max 60 chars", 
-          "replacement": "improved phrase", 
-          "reason": "max 12 words" 
-        }}
+        {{ "id": "s1", "target_id": "b_1", "type": "experience_bullet", "issue": "", "original_text": "", "replacement_text": "", "reason": "" }}
       ],
       "skill_gap_courses": [{{ "topic": "string", "description": "string" }}]
     }}
+    
+    IMPORTANT RULES:
+    1. EXTRACT DATA VERBATIM: Do not summarize or paraphrase original CV text during extraction.
+    2. NO HALLUCINATIONS: If a piece of information is missing, leave the field empty.
+    3. TARGETED SUGGESTIONS: Only suggest improvements for sections that exist.
+    4. NON-CV CONTENT: If the document isn't a CV, set `is_cv` to false.
     """
     
     try:
         response = client.chat.completions.create(
             model="llama-3.3-70b-versatile",
             messages=[
-                {"role": "system", "content": "You are a career consultant specialized in high-end recruitment analysis. Your output is always strictly structured JSON."},
+                {"role": "system", "content": "You are a career consultant specialized in high-end recruitment analysis. Your output is always strictly structured JSON. You must be extremely literal during extraction and never hallucinate data that isn't in the provided text."},
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"}
         )
         
-        return json.loads(response.choices[0].message.content.strip())
+        result = json.loads(response.choices[0].message.content.strip())
+        
+        # Guard against non-CV documents
+        if result.get("is_cv") == False:
+            # We still return the object but the frontend should handle the error_message
+            pass
+            
+        return result
 
     except Exception as e:
         print(f"ANALYSIS ERROR: {e}")
-        raise HTTPException(status_code=500, detail="AI Analysis failed. Check console for details.")
+        raise HTTPException(status_code=500, detail=f"AI Analysis failed: {str(e)}")
 
 @app.post("/generate-cover-letter")
 async def generate_cover_letter(request: CoverLetterRequest):
