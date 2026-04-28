@@ -10,7 +10,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from pydantic import BaseModel
 from pdf2docx import Converter
-from docx import Document # Added for DOCX manipulation
 from groq import Groq 
 from dotenv import load_dotenv
 
@@ -54,36 +53,6 @@ def log_usage(ip: str, text: str):
         conn.close()
     except Exception as e: print(f"Log Error: {e}")
 
-# --- DOCX MANIPULATION LOGIC ---
-def apply_cv_suggestions(docx_path, suggestions):
-    doc = Document(docx_path)
-    applied_count = 0
-
-    for suggestion in suggestions:
-        target = suggestion.get("xml_target")
-        replacement = suggestion.get("replacement")
-        
-        if not target or not replacement: continue
-
-        for para in doc.paragraphs:
-            # JOIN RUNS: This merges fragmented XML nodes so the target can be found
-            full_text = "".join(run.text for run in para.runs)
-            
-            if target in full_text:
-                new_text = full_text.replace(target, replacement)
-                # Clear existing fragmented runs
-                for run in para.runs:
-                    run.text = ""
-                # Put the corrected text into the first run
-                if para.runs:
-                    para.runs[0].text = new_text
-                else:
-                    para.add_run(new_text)
-                applied_count += 1
-    
-    doc.save(docx_path)
-    return applied_count
-
 # --- APP SETUP ---
 app = FastAPI()
 
@@ -109,6 +78,46 @@ class CVPersonalInfo(BaseModel):
 class CVExperienceBullet(BaseModel):
     id: str
     text: str
+
+class CVExperience(BaseModel):
+    id: str
+    title: str
+    company: str
+    location: str
+    dates: str
+    bullets: list[CVExperienceBullet]
+
+class CVEducationDetail(BaseModel):
+    id: str
+    text: str
+
+class CVEducation(BaseModel):
+    id: str
+    degree: str
+    institution: str
+    dates: str
+    details: list[CVEducationDetail]
+
+class CVProject(BaseModel):
+    id: str
+    name: str
+    description: str
+    technologies: list[str]
+
+class CVStructured(BaseModel):
+    personal_info: CVPersonalInfo
+    summary: str
+    experience: list[CVExperience]
+    projects: list[CVProject]
+    education: list[CVEducation]
+    certifications: list[str]
+    skills: list[str]
+
+class JDData(BaseModel):
+    role: str
+    skills: list[str]
+    responsibilities: list[str]
+    qualifications: list[str]
 
 class CVExtraction(BaseModel):
     cv_data: CVStructured
@@ -279,29 +288,6 @@ async def generate_cover_letter(request: CoverLetterRequest):
     except Exception as e:
         print(f"COVER LETTER ERROR: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate cover letter.")        
-
-@app.post("/apply-suggestions")
-async def apply_edits(file: UploadFile = File(...), suggestions_json: str = File(...)):
-    suggestions = json.loads(suggestions_json)
-    try:
-        content = await file.read()
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as tmp:
-            tmp.write(content)
-            tmp_path = tmp.name
-        
-        apply_cv_suggestions(tmp_path, suggestions)
-        
-        with open(tmp_path, "rb") as f:
-            updated_data = f.read()
-        os.remove(tmp_path)
-        
-        return Response(
-            content=updated_data,
-            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            headers={"Content-Disposition": "attachment; filename=Improved_CV.docx"}
-        )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Edit failed: {str(e)}")
 
 @app.post("/convert-pdf-to-docx")
 async def convert_pdf_to_docx(file: UploadFile = File(...)):
