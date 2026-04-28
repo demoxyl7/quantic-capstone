@@ -42,13 +42,12 @@ export function ResultsDashboard({ visible, data }: ResultsDashboardProps) {
 
         <div className="flex-1 text-center sm:text-left">
           <div
-            className={`inline-flex badge ${
-              data.score >= 75
+            className={`inline-flex badge ${data.score >= 75
                 ? "badge-success"
                 : data.score >= 50
                   ? "badge-primary"
                   : "badge-destructive"
-            } mb-2`}
+              } mb-2`}
           >
             {data.score >= 75
               ? "Strong Match"
@@ -56,7 +55,7 @@ export function ResultsDashboard({ visible, data }: ResultsDashboardProps) {
                 ? "Moderate Match"
                 : "Needs Work"}
           </div>
-          <h2 className="text-lg font-bold mb-1">{data.match_status}</h2>
+          {/* <h2 className="text-lg font-bold mb-1">{data.match_status}</h2> */}
           <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">
             {data.score >= 75
               ? "Your profile aligns well with this role. A few targeted refinements could make your application even stronger."

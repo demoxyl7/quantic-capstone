@@ -4,7 +4,7 @@ import { Upload, FileText, CheckCircle2, X } from "lucide-react";
 import { useState, useCallback, useRef } from "react";
 
 interface UploadZoneProps {
-  onFileContent: (content: string, fileName: string) => void;
+  onFileContent: (content: string) => void;
   apiBase: string;
 }
 
@@ -65,7 +65,7 @@ export function UploadZone({ onFileContent, apiBase }: UploadZoneProps) {
 
         setProgress(100);
         setUploading(false);
-        onFileContent(extractedText, f.name);
+        onFileContent(extractedText);
         
       } catch (error) {
         console.error("Upload failed:", error);
@@ -100,7 +100,7 @@ export function UploadZone({ onFileContent, apiBase }: UploadZoneProps) {
     setFile(null);
     setProgress(0);
     setUploading(false);
-    onFileContent("", "");
+    onFileContent("");
   };
 
   return (

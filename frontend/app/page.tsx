@@ -32,13 +32,89 @@ const STEPS = [
   { key: "COVER_LETTER" as Phase, label: "Cover Letter", icon: FileText },
 ];
 
+interface Experience {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  dates: string;
+  bullets: { id: string; text: string }[];
+}
+
+interface Education {
+  id?: string;
+  degree: string;
+  institution: string;
+  dates: string;
+  details: { id: string; text: string }[];
+}
+
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  technologies: string[];
+}
+
+interface CVData {
+  personal_info: {
+    name: string;
+    email: string;
+    phone: string;
+    linkedin: string;
+    location: string;
+    links: { label: string; url: string }[];
+  };
+  summary: string;
+  experience: Experience[];
+  projects: Project[];
+  education: Education[];
+  certifications: string[];
+  skills: string[];
+}
+
+interface ExtractionData {
+  skills?: string[];
+  experience?: (Experience | { title: string; company: string })[];
+  projects?: Project[];
+  education?: (Education | { degree: string; institution: string })[];
+  role?: string;
+  summary?: string;
+  responsibilities?: string[];
+  qualifications?: string[];
+}
+
+interface Suggestion {
+  id: string;
+  target_id: string;
+  type: string;
+  issue: string;
+  original_text: string;
+  replacement_text: string;
+  reason: string;
+}
+
+interface AnalysisResult {
+  is_cv: boolean;
+  error_message?: string;
+  score: number;
+  match_status: string;
+  matched_skills: string[];
+  missing_skills: string[];
+  skill_gap_courses: { topic: string; description: string }[];
+  extraction: {
+    cv_data: CVData;
+    jd_data: ExtractionData;
+  };
+  suggestions: Suggestion[];
+}
+
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("ANALYZE");
   const [cvContent, setCvContent] = useState("");
-  const [cvFileName, setCvFileName] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
-  const [resultData, setResultData] = useState<any>(null);
+  const [resultData, setResultData] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [coverLetter, setCoverLetter] = useState<string>("");
@@ -61,12 +137,18 @@ export default function Home() {
         }),
       });
 
-      const data = await response.json();
+      const data: AnalysisResult = await response.json();
 
       if (response.ok) {
-        setResultData(data);
+        if (data.is_cv === false) {
+          setError(data.error_message || "The uploaded document does not appear to be a CV. Please upload a valid resume.");
+          setResultData(null);
+        } else {
+          setResultData(data);
+        }
       } else {
-        setError(data.detail || "Analysis failed. Please try again.");
+        const errorData = data as unknown as { detail?: string };
+        setError(errorData.detail || "Analysis failed. Please try again.");
       }
     } catch {
       setError("Cannot reach the server. Make sure the backend is running.");
@@ -109,7 +191,6 @@ export default function Home() {
     setCoverLetter("");
     setResultData(null);
     setCvContent("");
-    setCvFileName("");
     setJobDescription("");
     setError(null);
   };
@@ -218,9 +299,8 @@ export default function Home() {
                     </div>
                     <UploadZone
                       apiBase={API_BASE}
-                      onFileContent={(content, name) => {
+                      onFileContent={(content) => {
                         setCvContent(content);
-                        setCvFileName(name);
                       }}
                     />
                   </div>
@@ -304,6 +384,7 @@ export default function Home() {
             {phase === "REFINE" && resultData && (
               <div className="space-y-8 animate-fade-in">
                 <OptimizedCVEditor
+                  initialCvData={resultData.extraction.cv_data}
                   suggestions={resultData.suggestions}
                 />
 

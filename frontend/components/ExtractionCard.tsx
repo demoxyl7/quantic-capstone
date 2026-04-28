@@ -1,13 +1,41 @@
-import { CheckCircle2, List, GraduationCap, Briefcase } from "lucide-react";
+import { CheckCircle2, List, GraduationCap, Briefcase, Sparkles } from "lucide-react";
+
+interface Experience {
+  title: string;
+  company: string;
+  location?: string;
+  dates?: string;
+  responsibilities?: string[];
+  bullets?: { id: string; text: string }[];
+}
+
+interface Education {
+  id?: string;
+  degree: string;
+  institution: string;
+  location?: string;
+  dates?: string;
+  details?: { id: string; text: string }[];
+}
+
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  technologies: string[];
+}
 
 interface ExtractionCardProps {
   title: string;
   type: "cv" | "jd";
   data: {
     skills?: string[];
-    experience?: any[];
-    education?: string[];
+    experience?: Experience[];
+    projects?: Project[];
+    education?: Education[];
+    certifications?: string[];
     role?: string;
+    summary?: string;
     responsibilities?: string[];
     qualifications?: string[];
   };
@@ -44,25 +72,52 @@ export function ExtractionCard({ title, type, data }: ExtractionCardProps) {
           </div>
         )}
 
-        {/* Skills */}
-        {data.skills && data.skills.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <CheckCircle2 className="h-3 w-3" />
-              <span>Skills</span>
+        {/* Summary */}
+        {data.summary && (
+          <div className="space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Summary
+            </p>
+            <p className="text-xs text-foreground/75 leading-relaxed italic">
+              &ldquo;{data.summary}&rdquo;
+            </p>
+          </div>
+        )}
+
+        {/* Certifications */}
+        {(data.certifications as string[])?.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-primary">
+              <CheckCircle2 className="h-4 w-4" />
+              <span className="text-xs font-bold uppercase tracking-wider">Certifications</span>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {data.skills.map((skill, index) => (
-                <span
-                  key={index}
-                  className="px-2.5 py-1 bg-secondary text-xs font-medium rounded-md text-foreground/70"
-                >
-                  {skill}
-                </span>
-              ))}
+            <div className="p-4 bg-muted/30 border border-border rounded-xl">
+              <ul className="list-disc ml-4 space-y-1">
+                {(data.certifications as string[]).map((cert, i) => (
+                  <li key={i} className="text-sm leading-relaxed">{cert}</li>
+                ))}
+              </ul>
             </div>
           </div>
         )}
+
+        {/* Skills */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-primary">
+            <Sparkles className="h-4 w-4" />
+            <span className="text-xs font-bold uppercase tracking-wider">Skills & Technologies</span>
+          </div>
+          <div className="p-4 bg-muted/30 border border-border rounded-xl flex flex-wrap gap-2">
+            {(data.skills as string[])?.map((skill: string, i: number) => (
+              <span 
+                key={i}
+                className="px-2 py-1 bg-primary/10 text-primary text-[10px] font-bold uppercase rounded"
+              >
+                {skill}
+              </span>
+            ))}
+          </div>
+        </div>
 
         {/* Responsibilities / Experience */}
         {(type === "jd" ? data.responsibilities : data.experience) && (
@@ -93,6 +148,33 @@ export function ExtractionCard({ title, type, data }: ExtractionCardProps) {
           </div>
         )}
 
+        {/* Projects */}
+        {data.projects && data.projects.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <span className="h-3 w-3 bg-primary/20 rounded flex items-center justify-center text-[8px]">P</span>
+              <span>Projects</span>
+            </div>
+            <div className="space-y-3">
+              {data.projects.slice(0, 2).map((proj) => (
+                <div key={proj.id} className="p-2.5 rounded-lg bg-secondary/30">
+                  <p className="text-xs font-bold mb-1">{proj.name}</p>
+                  <p className="text-[11px] text-foreground/70 line-clamp-2 leading-relaxed mb-1.5">
+                    {proj.description}
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {proj.technologies.slice(0, 3).map((tech) => (
+                      <span key={tech} className="text-[9px] px-1.5 py-0.5 bg-background/50 rounded text-muted-foreground">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Education / Qualifications */}
         {(type === "cv" ? data.education : data.qualifications) && (
           <div className="space-y-2">
@@ -100,11 +182,18 @@ export function ExtractionCard({ title, type, data }: ExtractionCardProps) {
               <GraduationCap className="h-3 w-3" />
               <span>{type === "cv" ? "Education" : "Qualifications"}</span>
             </div>
-            <p className="text-xs text-foreground/65 leading-relaxed">
-              {(type === "cv" ? data.education : data.qualifications)?.join(
-                " · "
-              )}
-            </p>
+            <div className="text-xs text-foreground/65 leading-relaxed">
+              {type === "cv" 
+                ? (data.education as Education[])?.map((edu: Education, i: number) => (
+                    <div key={i} className={i > 0 ? "mt-1.5" : ""}>
+                      <span className="font-semibold text-foreground/80">{edu.degree}</span>
+                      <span className="mx-1.5 text-muted-foreground">·</span>
+                      <span>{edu.institution}</span>
+                    </div>
+                  ))
+                : (data.qualifications as string[])?.join(" · ")
+              }
+            </div>
           </div>
         )}
       </div>
