@@ -48,4 +48,5 @@ urllib3==2.6.3
 uvicorn==0.44.0
 websockets==16.0
 pdf2docx==0.5.12
+psycopg2-binary
 # last update
