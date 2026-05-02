@@ -23,7 +23,7 @@ Build Status: SUCCESS | CI: GitHub Actions
 
 ## **1. Technology Choices & Rationale**
 
-Every technology in this stack was selected to balance **developer velocity**, **cost efficiency**, and **production readiness** for a single-developer capstone project with real-world deployment constraints.
+Every technology in this stack was selected to balance **developer velocity**, **cost efficiency**, and **production readiness** for a three-developer capstone project with real-world deployment constraints.
 
 ### **1.1 Backend — FastAPI (Python 3.11+)**
 
@@ -281,18 +281,34 @@ TypeScript with `strict: true` acts as a continuous static analysis layer:
 | **Frontend TypeScript Interfaces** | 10+ interfaces (`AnalysisResult`, `CVData`, `Suggestion`, `ExtractionData`, etc.) mirror the backend models, enforcing a compile-time contract between API responses and React component props. |
 | **End-to-End Contract** | The Pydantic models (backend) and TypeScript interfaces (frontend) together form a **bilateral type contract**. Any schema drift (e.g., renaming `score` to `match_score`) would be caught at either the Python validation layer or the TypeScript compilation layer. |
 
-### **5.4 Backend Unit Tests**
+### **5.4 Backend Unit & Offline Tests**
 
-**File: `backend/test_main.py`** — executed by `pytest` in CI.
+**File: `backend/test_main.py`** — executed by `pytest` in the CI `backend-tests` job.
 
-| Test Case | Objective | Status |
+| Test Category | Coverage | Status |
 | :--- | :--- | :--- |
-| **`test_health_check_logic`** | Validates baseline test infrastructure is functional | ✅ Pass |
-| **`test_placeholder`** | Ensures pytest runner has at least one assertion to execute | ✅ Pass |
+| **Health Check** | Validates baseline test infrastructure and `/` health endpoint | ✅ Pass |
+| **Request Validation** | Verifies Pydantic models reject invalid or missing bodies | ✅ Pass |
+| **Error Handling** | Ensures 500 status (not crashes) when AI client is missing | ✅ Pass |
+| **Fixture Integrity** | Confirms benchmark test CV and JD files exist and are well-formed | ✅ Pass |
 
-These tests serve as **smoke tests** — their primary purpose is to validate that the CI pipeline itself works, that all Python dependencies install correctly, and that the test runner executes without error. More granular tests for individual functions (e.g., `log_usage`, `init_db`) would require a test database, which is out of scope for the free-tier CI environment.
+These offline tests run on every push and PR without requiring an API key. They validate that the application's structural boundaries (validation, error trapping, routing) are sound before hitting the expensive external LLM API.
 
-### **5.5 Integration & End-to-End Testing (Manual)**
+### **5.5 Automated Benchmark Suite**
+
+**File: `backend/test_benchmark.py`** — executed by the CI `backend-benchmark` job.
+
+To prove the system works deterministically despite LLM variance, we implemented a Benchmark Test Suite using a fixed CV and Job Description pair. This suite runs live AI inferences and validates the structural and semantic contracts.
+
+| Test Category | Objective | Status |
+| :--- | :--- | :--- |
+| **Response Structure** | Validates all top-level keys exist and score ranges | ✅ Pass |
+| **Extraction Quality** | Verifies specific fields (e.g., 2+ jobs, 5+ skills) are successfully extracted from the synthetic CV and JD | ✅ Pass |
+| **Suggestion Quality** | Asserts exactly 5 suggestions are generated and all cross-reference valid extracted IDs | ✅ Pass |
+| **Skill Gaps** | Confirms 2+ courses are recommended with topics/descriptions | ✅ Pass |
+| **Semantic Matching** | Ensures expected core skills (AWS, Kubernetes) are matched and missing skills (GCP, Pulumi) are identified correctly | ✅ Pass |
+
+### **5.6 Integration & End-to-End Testing (Manual)**
 
 Given the non-deterministic nature of LLM output, integration testing was performed manually and verified against expected structural contracts:
 
@@ -308,7 +324,7 @@ Given the non-deterministic nature of LLM output, integration testing was perfor
 | **Cover Letter Generation** | `/generate-cover-letter` returns coherent, role-specific text | Generated 5 cover letters; verified relevance to JD and professional tone | ✅ Pass |
 | **Copy-to-Clipboard Workflow** | Refined suggestion text copies to system clipboard | Clicked "Copy Improved Text" on all 5 suggestions; verified clipboard content | ✅ Pass |
 
-### **5.6 Deployment / UAT Testing**
+### **5.7 Deployment / UAT Testing**
 
 | Test Case | Metric | Result |
 | :--- | :--- | :--- |
@@ -318,7 +334,7 @@ Given the non-deterministic nature of LLM output, integration testing was perfor
 | **Cross-Browser Compatibility** | Chrome, Safari, Firefox on macOS | All features functional; no rendering issues |
 | **Mobile Responsiveness** | Viewport < 1024px (sidebar collapses, grid stacks) | Responsive layout verified on iPhone 15 Pro and iPad simulators |
 
-### **5.7 Why Not More Automated Tests?**
+### **5.8 Why Not More Automated Tests?**
 
 | Consideration | Reasoning |
 | :--- | :--- |

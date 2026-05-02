@@ -7,30 +7,50 @@ on:
     branches: [main]
 
 jobs:
-  # --- BACKEND CI ---
+  # --- BACKEND CI (Offline Tests — always run) ---
   backend-tests:
     runs-on: ubuntu-latest
-    # Only run if files in the backend folder change
     defaults:
       run:
-        working-directory: ./backend
+        working-directory: .
     steps:
       - uses: actions/checkout@v4
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install pytest  # Ensure pytest is installed for the test
-      - name: Run Backend Health Test
-        run: pytest
+          pip install pytest httpx
+      - name: Run Offline Tests
+        run: pytest backend/test_main.py -v
+
+  # --- BACKEND BENCHMARK (Live AI Tests — requires GROQ_API_KEY secret) ---
+  backend-benchmark:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest httpx
+      - name: Run Benchmark Tests
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: pytest backend/test_benchmark.py -v --tb=long
 
   # --- FRONTEND CI ---
   frontend-build:
     runs-on: ubuntu-latest
-    # Only run if files in the frontend folder change
     defaults:
       run:
         working-directory: ./frontend
