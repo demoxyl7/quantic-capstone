@@ -89,13 +89,6 @@ export function OptimizedCVEditor({
             I&apos;ve pinpointed exactly where your profile needs a boost. Review these strategic pivots to dominate this role.
           </p>
         </div>
-
-        {/* <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Remaining</span>
-            <span className="text-xl font-mono font-bold text-primary">{pendingSuggestions.length}</span>
-          </div>
-        </div> */}
       </div>
 
       <div className="grid gap-6">
