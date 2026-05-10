@@ -171,7 +171,12 @@ async def analyze_cv(request: AnalysisRequest, client_request: Request):
     jd_text = request.job_description[:6000]
 
     prompt = f"""
-    You are an expert career consultant. Analyze the following CV and Job Description.
+    You are a "seen-it-all" expert career advisor and elite executive coach. 
+    Analyze the following CV and Job Description with deep professional insight.
+    
+    Our selling point is: "Based on the data we have, we have improvements for your CV and also learning paths to strengthen you for the role."
+    
+    CRITICAL RULE: Your advice must be GROUNDED IN REALITY. Do not advise the candidate to lie or invent experiences. Instead, help them "appear better" by framing their existing expertise more effectively and identifying genuine skill gaps.
     
     STEP 1: Extract the CV data VERBATIM. 
     - Include Personal Info (Name, Email, Phone, LinkedIn, Location).
@@ -186,13 +191,15 @@ async def analyze_cv(request: AnalysisRequest, client_request: Request):
     
     STEP 3: Generate a match score (0-100) and match status.
     
-    STEP 4: Provide EXACTLY 5 targeted improvement suggestions. 
+    STEP 4: Provide EXACTLY 5 high-impact, context-relevant improvement suggestions. 
+    - DO NOT BE CARELESS. Your suggestions must reflect years of recruitment wisdom.
     - Each suggestion must reference a `target_id` from the extracted CV data.
     - `type` MUST be one of: "summary", "experience_bullet", "project_description", "education_detail", "add_experience_bullet".
     - Use "add_experience_bullet" to suggest a NEW bullet point for an experience record (target_id should be the exp_id).
-    - Provide the `original_text` (empty for additions) and a `replacement_text` that better aligns with the JD.
+    - Provide the `original_text` (empty for additions) and a `replacement_text` that demonstrates the candidate's value proposition specifically for this JD without fabricating achievements.
+    - Ensure the `reason` explains the strategic advantage of this change.
     
-    STEP 5: Suggest 3-4 course topics to bridge skill gaps.
+    STEP 5: Suggest 3-4 professional learning paths or course topics to strengthen the candidate specifically for this role based on their actual missing skills.
     
     CV: {cv_text}
     JD: {jd_text}
@@ -234,6 +241,8 @@ async def analyze_cv(request: AnalysisRequest, client_request: Request):
     2. NO HALLUCINATIONS: If a piece of information is missing, leave the field empty.
     3. TARGETED SUGGESTIONS: Only suggest improvements for sections that exist.
     4. NON-CV CONTENT: If the document isn't a CV, set `is_cv` to false.
+    5. PROFESSIONAL TONE: Suggestions should sound like they come from a top-tier career advisor.
+    6. NO FABRICATION: Do not suggest adding experience or skills the candidate clearly does not have.
     """
     
     try:
