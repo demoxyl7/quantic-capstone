@@ -54,10 +54,10 @@ export function ResultsDashboard({
             <div className="flex flex-wrap items-center gap-2 mb-2">
               <div
                 className={`inline-flex badge ${data.score >= 75
-                    ? "badge-success"
-                    : data.score >= 50
-                      ? "badge-primary"
-                      : "badge-destructive"
+                  ? "badge-success"
+                  : data.score >= 50
+                    ? "badge-primary"
+                    : "badge-destructive"
                   }`}
               >
                 {data.score >= 75
@@ -65,9 +65,6 @@ export function ResultsDashboard({
                   : data.score >= 50
                     ? "Moderate Match"
                     : "Needs Work"}
-              </div>
-              <div className="inline-flex badge bg-primary/10 text-primary border-primary/20">
-                Expert Advisor Analysis
               </div>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed max-w-xl">

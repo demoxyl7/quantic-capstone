@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Sparkles,
   Zap,
@@ -115,6 +115,13 @@ export default function Home() {
   const [analyzing, setAnalyzing] = useState(false);
   const [resultData, setResultData] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo(0, 0);
+    }
+  }, [phase]);
 
   const [coverLetter, setCoverLetter] = useState<string>("");
   const [isGeneratingLetter, setIsGeneratingLetter] = useState(false);
@@ -265,7 +272,7 @@ export default function Home() {
         </header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
           <div className="max-w-5xl mx-auto px-8 py-10 pb-24 space-y-10">
             {/* Error banner */}
             {error && (
