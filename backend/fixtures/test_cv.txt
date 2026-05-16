@@ -1,0 +1,51 @@
+ALEX MORGAN
+Email: alex.morgan@email.com | Phone: +44 7700 900123 | LinkedIn: linkedin.com/in/alexmorgan | Location: London, UK
+
+PROFESSIONAL SUMMARY
+Results-driven Cloud Infrastructure Engineer with 5+ years of experience designing, deploying, and maintaining scalable cloud architectures on AWS and Azure. Proven track record of reducing infrastructure costs by 35% through automation and IaC adoption. Passionate about DevOps culture, CI/CD pipelines, and site reliability engineering.
+
+EXPERIENCE
+
+Senior Cloud Engineer | CloudScale Solutions | London, UK | Jan 2023 – Present
+- Architected and deployed multi-region Kubernetes clusters on AWS EKS serving 2M+ daily requests with 99.95% uptime.
+- Reduced monthly cloud spend by £18,000 through Reserved Instance planning and Spot Fleet adoption.
+- Built CI/CD pipelines using GitHub Actions and ArgoCD, cutting deployment time from 45 minutes to 8 minutes.
+- Led incident response for P1 outages, achieving mean-time-to-recovery (MTTR) under 15 minutes.
+- Mentored a team of 3 junior engineers on Terraform best practices and infrastructure-as-code workflows.
+
+Cloud Infrastructure Engineer | DataFlow Ltd | Manchester, UK | Mar 2020 – Dec 2022
+- Managed 200+ EC2 instances across staging and production environments using Ansible and Terraform.
+- Implemented centralized logging with the ELK stack (Elasticsearch, Logstash, Kibana), reducing MTTR by 40%.
+- Designed and maintained VPC architectures with private subnets, NAT gateways, and VPN tunnels.
+- Automated SSL certificate rotation using AWS Certificate Manager and Lambda functions.
+- Migrated legacy on-premises PostgreSQL databases to Amazon RDS with zero-downtime blue-green deployments.
+
+Junior Systems Administrator | TechBridge Consulting | Birmingham, UK | Jun 2018 – Feb 2020
+- Provided L2/L3 support for Linux-based infrastructure (Ubuntu, CentOS) across 50+ servers.
+- Wrote Bash and Python scripts to automate routine maintenance tasks, saving 10+ hours per week.
+- Configured Nagios and Prometheus monitoring dashboards for proactive alerting.
+
+PROJECTS
+
+Cloud Cost Optimizer Dashboard | Personal Project
+A full-stack web application that aggregates AWS Cost Explorer data and visualizes spending trends. Built with React, FastAPI, and PostgreSQL. Deployed on AWS using ECS Fargate with automated CI/CD via GitHub Actions.
+Technologies: React, FastAPI, PostgreSQL, AWS ECS, Docker, GitHub Actions
+
+Infrastructure Drift Detector | Open Source Contributor
+Contributed to an open-source Terraform drift detection tool that scans for configuration drift between Terraform state and live cloud resources. Added support for Azure Resource Manager scanning.
+Technologies: Python, Terraform, Azure SDK, GitHub Actions
+
+EDUCATION
+
+BSc Computer Science | University of Manchester | 2015 – 2018
+- First Class Honours
+- Dissertation: "Automated Scaling Strategies for Containerised Microservices"
+
+CERTIFICATIONS
+- AWS Solutions Architect – Professional
+- Certified Kubernetes Administrator (CKA)
+- HashiCorp Terraform Associate
+- Azure Fundamentals (AZ-900)
+
+SKILLS
+AWS, Azure, Kubernetes, Docker, Terraform, Ansible, GitHub Actions, ArgoCD, Python, Bash, Linux, PostgreSQL, Prometheus, Grafana, ELK Stack, CI/CD, Infrastructure as Code, Networking (VPC/DNS), Agile/Scrum

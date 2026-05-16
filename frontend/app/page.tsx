@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Sparkles,
   Zap,
@@ -115,6 +115,13 @@ export default function Home() {
   const [analyzing, setAnalyzing] = useState(false);
   const [resultData, setResultData] = useState<AnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo(0, 0);
+    }
+  }, [phase]);
 
   const [coverLetter, setCoverLetter] = useState<string>("");
   const [isGeneratingLetter, setIsGeneratingLetter] = useState(false);
@@ -265,7 +272,7 @@ export default function Home() {
         </header>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
           <div className="max-w-5xl mx-auto px-8 py-10 pb-24 space-y-10">
             {/* Error banner */}
             {error && (
@@ -343,12 +350,15 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* Results */}
+                {/* Results Preview */}
                 {resultData && (
                   <section className="space-y-8 animate-fade-in-up">
                     <ResultsDashboard
                       visible={!!resultData}
                       data={resultData}
+                      showScore={true}
+                      showSkills={true}
+                      showLearningPath={false}
                     />
 
                     <div className="grid gap-6 md:grid-cols-2">
@@ -370,7 +380,7 @@ export default function Home() {
                         onClick={() => setPhase("REFINE")}
                         className="group btn-primary px-8 py-3.5 text-base"
                       >
-                        Continue to CV Optimization
+                        See Detailed Analysis & Refine CV
                         <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </button>
                     </div>
@@ -381,18 +391,49 @@ export default function Home() {
 
             {/* ===== PHASE 2: REFINE ===== */}
             {phase === "REFINE" && resultData && (
-              <div className="space-y-8 animate-fade-in">
-                <OptimizedCVEditor
-                  initialCvData={resultData.extraction.cv_data}
-                  suggestions={resultData.suggestions}
-                />
+              <div className="space-y-10 animate-fade-in">
+                {/* Career Advisor Insight */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold">Career Advisor Insight</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Based on the data we have, we have improvements for your CV and also learning paths to strengthen you for the role.
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <ResultsDashboard
+                    visible={!!resultData}
+                    data={resultData}
+                    showScore={false}
+                    showSkills={false}
+                    showLearningPath={true}
+                  />
+                </div>
+
+                <div className="border-t border-border pt-10">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <PenLine className="h-5 w-5" />
+                    </div>
+                    <h2 className="text-lg font-bold">CV Optimization</h2>
+                  </div>
+                  <OptimizedCVEditor
+                    initialCvData={resultData.extraction.cv_data}
+                    suggestions={resultData.suggestions}
+                  />
+                </div>
 
                 <div className="flex items-center justify-center gap-4 pt-4">
                   <button
                     onClick={() => setPhase("ANALYZE")}
                     className="btn-ghost text-sm"
                   >
-                    ← Back to Results
+                    ← Back to Analysis
                   </button>
                   <button
                     id="go-to-cover-letter"

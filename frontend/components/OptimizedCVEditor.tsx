@@ -83,18 +83,11 @@ export function OptimizedCVEditor({
             <div className="p-2 bg-primary/10 rounded-lg">
               <Sparkles className="h-5 w-5 text-primary" />
             </div>
-            <h3 className="text-2xl font-bold tracking-tight">Refinement Suggestions</h3>
+            <h3 className="text-2xl font-bold tracking-tight">Advisor&apos;s Strategic Refinements</h3>
           </div>
           <p className="text-muted-foreground">
-            Copy AI-improved content to refine your document manually.
+            I&apos;ve pinpointed exactly where your profile needs a boost. Review these strategic pivots to dominate this role.
           </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end">
-            <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider">Remaining</span>
-            <span className="text-xl font-mono font-bold text-primary">{pendingSuggestions.length}</span>
-          </div>
         </div>
       </div>
 

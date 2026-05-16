@@ -1,0 +1,42 @@
+Senior DevOps Engineer – Cloud Platform Team
+
+Company: FinEdge Technologies
+Location: London, UK (Hybrid – 3 days in office)
+Salary: £85,000 – £105,000 + benefits
+
+About the Role:
+We are looking for a Senior DevOps Engineer to join our Cloud Platform team. You will be responsible for designing, building, and maintaining the cloud infrastructure that powers our real-time financial data processing platform. You will work closely with software engineering, data, and security teams to deliver highly available, secure, and cost-efficient infrastructure at scale.
+
+Key Responsibilities:
+- Design and operate production Kubernetes clusters on AWS EKS and GCP GKE, ensuring high availability and disaster recovery.
+- Build and maintain CI/CD pipelines using GitHub Actions, Jenkins, and ArgoCD for 50+ microservices.
+- Implement Infrastructure as Code using Terraform and Pulumi across multi-cloud environments.
+- Drive observability strategy using Prometheus, Grafana, Datadog, and distributed tracing (Jaeger).
+- Lead incident management and on-call rotations, targeting MTTR under 10 minutes for P1 incidents.
+- Collaborate with the security team to implement cloud security best practices including IAM policies, network segmentation, and secrets management (HashiCorp Vault).
+- Optimize cloud costs through reserved capacity planning, rightsizing, and FinOps dashboards.
+- Mentor mid-level and junior engineers, conducting code reviews and knowledge-sharing sessions.
+
+Required Qualifications:
+- 4+ years of experience in DevOps, SRE, or Cloud Engineering roles.
+- Strong hands-on experience with AWS (EKS, EC2, RDS, Lambda, S3, IAM).
+- Proficiency with container orchestration (Kubernetes) and containerisation (Docker).
+- Experience with Infrastructure as Code tools (Terraform required; Pulumi preferred).
+- Solid scripting skills in Python and/or Bash.
+- Experience with CI/CD tools (GitHub Actions, Jenkins, or equivalent).
+- Strong understanding of networking concepts (VPCs, load balancers, DNS, TLS).
+- Familiarity with monitoring and alerting stacks (Prometheus, Grafana, PagerDuty).
+
+Preferred Qualifications:
+- AWS Solutions Architect or DevOps Engineer certification.
+- Certified Kubernetes Administrator (CKA).
+- Experience with GCP (GKE, Cloud Build, BigQuery).
+- Familiarity with FinOps frameworks and cost optimisation strategies.
+- Experience in financial services or regulated environments.
+- Active SC or DV security clearance.
+
+Benefits:
+- 25 days annual leave + bank holidays
+- Private healthcare and dental
+- Annual learning budget of £3,000
+- Flexible hybrid working
